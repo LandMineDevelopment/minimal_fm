@@ -1,0 +1,7 @@
+fm() {
+    ./filemanager
+    if [ -f /tmp/fm_last_dir ]; then
+        cd "$(cat /tmp/fm_last_dir)" || true
+        rm -f /tmp/fm_last_dir
+    fi
+}
