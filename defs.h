@@ -49,6 +49,9 @@
 #define MAX_ERROR_LEN 128
 #define MAX_EXT_LEN 16
 #define MAX_PREVIEW_LINES 20
+#define MAX_BOX_COLS 3
+#define MAX_BOX_ROWS 3
+#define NUM_SCREENS 4
 
 // Modal contexts
 #define CTX_NORMAL          0
@@ -57,6 +60,11 @@
 #define CTX_SEARCH          3
 #define CTX_DELETE_CONFIRM  4
 
+//Box dim types
+#define FIXED 0
+#define RELATIVE 1
+
+#define SYS_nanosleep 35
 // Preview modes
 typedef enum {
     PREVIEW_NONE,
@@ -95,37 +103,56 @@ struct winsize {
     unsigned short ws_ypixel;
 };
 
-// Central application state
+typedef struct {
+    unsigned short id;
+    unsigned short column_offset;
+    unsigned short row_offset;
+    unsigned short height;
+    unsigned short width;
+    unsigned short dim_type;
+    unsigned short top_margin;
+    unsigned short bottom_margin;
+    unsigned short left_margin;
+    unsigned short right_margin;
+    char top_border;
+    char bottom_boarder;
+    char left_border;
+    char right_border;
+} Box;
+
+typedef struct {
+    unsigned short height;
+    unsigned short width;
+    unsigned short margin;
+    char border;
+    unsigned short bottom_margin;
+    unsigned short left_margin;
+    unsigned short right_margin;
+    char top_border;
+    char bottom_boarder;
+    char left_border;
+    char right_border;
+    int cursor_loc;
+    int cursor_min;
+    int cursor_max;
+    Box grid[MAX_BOX_COLS][MAX_BOX_ROWS];
+} Screen;
+
 typedef struct {
     struct termios oldt;
     struct termios newt;
 
-    unsigned short height;
-    unsigned short width;
-
-    char screen[MAX_ROWS * MAX_COLS];
-
-    int margin;
-    int left_parts;
-    int middle_parts;
-    int right_parts;
-
     Entry parent_entries[MAX_ENTRIES];
     int num_parent;
-
     Entry current_entries[MAX_ENTRIES];
     int num_current;
-
     Entry filtered_entries[MAX_ENTRIES];
     int num_filtered;
-
     Entry preview_entries[MAX_ENTRIES];
     int num_preview;
     PreviewMode preview_mode;
 
-    int cursor_loc;
-    int cursor_min;
-    int cursor_max;
+    Screen screens[NUM_SCREENS];
 
     int show_hidden;
 
@@ -148,6 +175,7 @@ typedef struct {
     int delete_multi;
     int delete_recursive;
 } AppState;
+
 
 // Globals
 extern AppState app_state;
