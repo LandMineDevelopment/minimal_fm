@@ -8,6 +8,7 @@
 void clear_screen(void);
 void clear_line(void);              // from cursor to end of line
 void clear_to_screen_end(void);
+void clear_section(unsigned short x_start,unsigned short x_stop,unsigned short y_start,unsigned short y_stop); 
 
 // Cursor movement
 void move_cursor(unsigned short col, unsigned short row);  // 1-based

@@ -25,13 +25,21 @@ void draw_x(int x_start, int x_stop, int y_start, int y_stop) {
         write_str("x", 1);
         move_cursor(i,y_stop);
         write_str("x", 1);
-        msleep(25);
+        // msleep(25);
     }
     for (int j = y_start; j < y_stop; j++){
         move_cursor(x_start,j);
         write_str("x", 1);
         move_cursor(x_stop,j);
         write_str("x", 1);
+    }
+}
+void fill_x(int x_start, int x_stop, int y_start, int y_stop) {
+    for (unsigned short row = y_start; row < y_stop; row++) {
+        move_cursor(x_start, row);
+        for (unsigned short col = x_start; col < x_stop; col++) {
+            write_str("x", 1);
+        }
     }
 }
 

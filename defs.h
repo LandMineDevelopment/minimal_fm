@@ -33,6 +33,8 @@
 #define DT_UNKNOWN 0
 #define DT_DIR 4
 #define DT_REG 8
+typedef void (*update_func)(void);
+typedef unsigned short (*keybind_func)(char);
 
 // Term flags
 #define ICANON 0000002
@@ -49,9 +51,8 @@
 #define MAX_ERROR_LEN 128
 #define MAX_EXT_LEN 16
 #define MAX_PREVIEW_LINES 20
-#define MAX_BOX_COLS 3
-#define MAX_BOX_ROWS 3
-#define NUM_SCREENS 4
+#define MAX_BOXES_PER_SCREEN 15
+#define NUM_SCREENS 1
 
 // Modal contexts
 #define CTX_NORMAL          0
@@ -60,9 +61,14 @@
 #define CTX_SEARCH          3
 #define CTX_DELETE_CONFIRM  4
 
-//Box dim types
+//Grid dim types
 #define FIXED 0
 #define RELATIVE 1
+
+//Actions
+#define ACTION_NOTHING 0
+#define ACTION_EXIT 1
+
 
 #define SYS_nanosleep 35
 // Preview modes
@@ -123,39 +129,47 @@ typedef struct {
 typedef struct {
     unsigned short height;
     unsigned short width;
-    unsigned short margin;
-    char border;
+    unsigned short top_margin;
     unsigned short bottom_margin;
     unsigned short left_margin;
     unsigned short right_margin;
     char top_border;
-    char bottom_boarder;
+    char bottom_border;
     char left_border;
     char right_border;
-    int cursor_loc;
-    int cursor_min;
-    int cursor_max;
-    Box grid[MAX_BOX_COLS][MAX_BOX_ROWS];
+    unsigned short column;
+
+    //Grid
+    unsigned short grid_cols;
+    unsigned short grid_rows;
+    unsigned short grid_dim_type;
+    unsigned short grid_cols_dims[MAX_BOXES_PER_SCREEN];
+    unsigned short grid_row_dims[MAX_BOXES_PER_SCREEN];
+
+    keybind_func keybind;
+    update_func update;
+
+    //Boxes
+    unsigned short box_height[MAX_BOXES_PER_SCREEN];
+    unsigned short box_width[MAX_BOXES_PER_SCREEN];
+    unsigned short box_top_margin[MAX_BOXES_PER_SCREEN];
+    unsigned short box_bottom_margin[MAX_BOXES_PER_SCREEN];
+    unsigned short box_left_margin[MAX_BOXES_PER_SCREEN];
+    unsigned short box_right_margin[MAX_BOXES_PER_SCREEN];
+    char box_top_border[MAX_BOXES_PER_SCREEN];
+    char box_bottom_border[MAX_BOXES_PER_SCREEN];
+    char box_left_border[MAX_BOXES_PER_SCREEN];
+    char box_right_border[MAX_BOXES_PER_SCREEN];
+    keybind_func box_keybind[MAX_BOXES_PER_SCREEN];
+    update_func box_update[MAX_BOXES_PER_SCREEN];
+
 } Screen;
 
 typedef struct {
     struct termios oldt;
     struct termios newt;
 
-    Entry parent_entries[MAX_ENTRIES];
-    int num_parent;
-    Entry current_entries[MAX_ENTRIES];
-    int num_current;
-    Entry filtered_entries[MAX_ENTRIES];
-    int num_filtered;
-    Entry preview_entries[MAX_ENTRIES];
-    int num_preview;
-    PreviewMode preview_mode;
-
     Screen screens[NUM_SCREENS];
-
-    int show_hidden;
-
     const char *editor_cmd;
 
     char clipboard_paths[MAX_CLIPBOARD][MAX_PATH];

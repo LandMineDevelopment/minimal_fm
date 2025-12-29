@@ -2,7 +2,6 @@
 #include "syscall.h"
 #include "dir.h"
 #include "screen.h"
-#include "keybind.h"
 #include "string.h"
 #include "ansi.h"
 #include "draw.h"
@@ -45,6 +44,8 @@ void _start(void) {
 
     struct winsize ws;
     syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+    nav_screen.height = ws.ws_row;
+    nav_screen.width = ws.ws_col;
 
     // 4. Raw mode
     struct termios oldt;
@@ -65,13 +66,22 @@ void _start(void) {
     int curr_x = 0;
     int curr_y = 0;
     char c;
+    unsigned short act = ACTION_NOTHING;
+    unsigned short  run = 1;
     while (1) {
         long bytes_read = syscall3(SYS_READ, 0, (long)&c, 1);
         if (bytes_read <= 0) break;
-        if (c == 'q') break;
+        act = nav_screen.keybind(c);
+        if (act = ACTION_EXIT) break;
+        // if (c == 'q') break;
         if (c == 'd') {
             clear_screen();
-            draw(1,ws.ws_col,1,ws.ws_row + 1, draw_x);
+            // draw(0,ws.ws_col,0,ws.ws_row + 1, draw_x);
+            draw(0,ws.ws_col,0,ws.ws_row + 1, fill_x);
+            // draw(0,5,0, 5 + 1, fill_x);
+        }
+        if (c == 'c') {
+            clear_section(0,ws.ws_col,0,ws.ws_row + 1);
         }
         if (c == 'i') {
             if (curr_y > 0) curr_y--;
