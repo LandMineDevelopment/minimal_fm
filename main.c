@@ -73,33 +73,34 @@ void _start(void) {
         long bytes_read = syscall3(SYS_READ, 0, (long)&c, 1);
         if (bytes_read <= 0) break;
 
-        act = nav_screen.keybind(c);
+        syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+        // act = nav_screen.keybind(c);
+        act = nav_keybind(c, &nav_screen, ws.ws_col, ws.ws_row);
 
         if (act == ACTION_EXIT) break;
-        if (act == ACTION_REFRESH) {
-            clear_screen();
-            syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
-            nav_screen.update(&nav_screen, ws.ws_col, ws.ws_row);
-        }
-        if (c == 'd') {
+        // if (act == ACTION_REFRESH) {
+        //     syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+        //     nav_screen.update(&nav_screen, ws.ws_col, ws.ws_row);
+        // }
+        if (c == 'd' && act == ACTION_NOTHING) {
             fill_x(0,ws.ws_col,0,ws.ws_row + 1);
         }
-        if (c == 'c') {
+        if (c == 'c' && act == ACTION_NOTHING) {
             clear_section(0,ws.ws_col,0,ws.ws_row + 1);
         }
-        if (c == 'i') {
+        if (c == 'i' && act == ACTION_NOTHING) {
             if (curr_y > 0) curr_y--;
             move_cursor(curr_x,curr_y);
         }
-        if (c == 'k') {
+        if (c == 'k' && act == ACTION_NOTHING) {
             if (curr_y < ws.ws_row) curr_y++;
             move_cursor(curr_x,curr_y);
         }
-        if (c == 'j') {
+        if (c == 'j' && act == ACTION_NOTHING) {
             if (curr_x > 0) curr_x--;
             move_cursor(curr_x,curr_y);
         }
-        if (c == 'l') {
+        if (c == 'l' && act == ACTION_NOTHING) {
             if (curr_x < ws.ws_col) curr_x++;
             move_cursor(curr_x,curr_y);
         }

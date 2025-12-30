@@ -63,11 +63,12 @@ void nav_draw(Screen *screen_ptr) {
               screen_ptr->box_offset_y[0], screen_ptr->box_offset_y[0] + screen_ptr->box_height[0]);
     //draw box 1
     draw_dir_listing((long)".",
-              screen_ptr->box_offset_x[1], screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
+              screen_ptr->box_offset_x[1] + 1, screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
               screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);
 }
 
 unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short height){
+    clear_screen();
     Screen *screen = (Screen *)screen_ptr;
     screen->width = width;
     screen->height = height;
@@ -96,6 +97,14 @@ unsigned short nav_keybinds(char key){
     else if (key == 'r') return ACTION_REFRESH;
     return ACTION_NOTHING;
 }
+unsigned short nav_keybind(char key, Screen *screen, unsigned short width, unsigned short height){
+    if (key == 'q') return ACTION_EXIT;
+    else if (key == 'r') {
+        nav_update(screen, width, height);
+        return ACTION_REFRESH;
+    }
+    return ACTION_NOTHING;
+}
 
 Screen nav_screen = {
     .height = 0,
@@ -116,8 +125,8 @@ Screen nav_screen = {
     .grid_cols_dims = {1, 1, 2},
     .grid_row_dims = {1},
 
-    .keybind = nav_keybinds,
-    .update = nav_update,
+    // .keybind = nav_keybinds,
+    // .update = nav_update,
     //
     //Boxes
     .num_boxes = 3,
