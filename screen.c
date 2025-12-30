@@ -57,8 +57,11 @@ void draw(int x_start, int x_stop, int y_start, int y_stop, void (*func)(int, in
 }
 
 void nav_draw(Screen *screen_ptr) {
-    // draw_cwd(screen_ptr->box_offset_x[1], screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
-    //           screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);
+    //draw box 0
+    draw_dir_listing((long)"..",
+              screen_ptr->box_offset_x[0], screen_ptr->box_offset_x[0] + screen_ptr->box_width[0],
+              screen_ptr->box_offset_y[0], screen_ptr->box_offset_y[0] + screen_ptr->box_height[0]);
+    //draw box 1
     draw_dir_listing((long)".",
               screen_ptr->box_offset_x[1], screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
               screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);

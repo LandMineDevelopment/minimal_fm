@@ -39,18 +39,6 @@ void draw_cwd(unsigned short x_start, unsigned short x_stop,
     restore_cursor();
 }
 
-// int list_dir_entries(char *buf, int buf_size)
-// {
-//     long fd = syscall2(SYS_OPEN, (long)".", O_DIRECTORY | O_RDONLY);
-//     if (fd < 0) return -1;
-//
-//     long nread = syscall3(SYS_GETDENTS64, fd, (long)buf, buf_size);
-//     syscall1(SYS_CLOSE, fd);
-//
-//     if (nread < 0) return -1;
-//     return nread;  // number of bytes read
-// }
-
 int list_dir_entries(long dir_type, char *buf, int buf_size)
 {
     long fd = syscall2(SYS_OPEN, (long)dir_type, O_DIRECTORY | O_RDONLY);
@@ -66,7 +54,6 @@ int list_dir_entries(long dir_type, char *buf, int buf_size)
 void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_stop,
                       unsigned short y_start, unsigned short y_stop)
 {
-    // char buf[32 + (1 + x_stop - x_start) * (1 + y_stop - y_start) ];
     char buf[MAX_DIRENT_BUF];
     int nread = list_dir_entries((long)dir_type, buf, sizeof(buf));
     if (nread <= 0) {
@@ -80,7 +67,6 @@ void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_st
     unsigned short curr_col = x_start;
     int pos = 0;
     while (pos < nread && curr_row <= y_stop) {
-    // while (pos < nread ) {
         move_cursor(x_start, curr_row);
 
         struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
@@ -89,6 +75,8 @@ void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_st
         if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
         else len_write = my_strlen(d->d_name);
         write_str(d->d_name, len_write);
+
+        if (d->d_type == DT_DIR) write_str("/", 1);
 
         pos += d->d_reclen;
         curr_row += 1;
