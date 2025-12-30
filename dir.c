@@ -3,6 +3,7 @@
 #include "ansi.h"      // for move_cursor, write_str
 #include "string.h"
 
+#define MAX_DIRENT_BUF 8192
 
 void draw_cwd(unsigned short x_start, unsigned short x_stop,
               unsigned short y_start, unsigned short y_stop)
@@ -38,27 +39,36 @@ void draw_cwd(unsigned short x_start, unsigned short x_stop,
     restore_cursor();
 }
 
+// int list_dir_entries(char *buf, int buf_size)
+// {
+//     long fd = syscall2(SYS_OPEN, (long)".", O_DIRECTORY | O_RDONLY);
+//     if (fd < 0) return -1;
+//
+//     long nread = syscall3(SYS_GETDENTS64, fd, (long)buf, buf_size);
+//     syscall1(SYS_CLOSE, fd);
+//
+//     if (nread < 0) return -1;
+//     return nread;  // number of bytes read
+// }
 
-#define MAX_DIRENT_BUF 8192
-
-int list_dir_entries(char *buf, int buf_size)
+int list_dir_entries(long dir_type, char *buf, int buf_size)
 {
-    long fd = syscall2(SYS_OPEN, (long)".", O_DIRECTORY | O_RDONLY);
+    long fd = syscall2(SYS_OPEN, (long)dir_type, O_DIRECTORY | O_RDONLY);
     if (fd < 0) return -1;
 
     long nread = syscall3(SYS_GETDENTS64, fd, (long)buf, buf_size);
     syscall1(SYS_CLOSE, fd);
 
     if (nread < 0) return -1;
-    return nread;  // number of bytes read
+    return nread;
 }
 
-void draw_dir_listing(unsigned short x_start, unsigned short x_stop,
+void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_stop,
                       unsigned short y_start, unsigned short y_stop)
 {
     // char buf[32 + (1 + x_stop - x_start) * (1 + y_stop - y_start) ];
     char buf[MAX_DIRENT_BUF];
-    int nread = list_dir_entries(buf, sizeof(buf));
+    int nread = list_dir_entries((long)dir_type, buf, sizeof(buf));
     if (nread <= 0) {
         move_cursor(x_start, y_start);
         write_str("[NO FILES]", 10);
