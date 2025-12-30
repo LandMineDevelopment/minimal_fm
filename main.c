@@ -72,7 +72,9 @@ void _start(void) {
     while (1) {
         long bytes_read = syscall3(SYS_READ, 0, (long)&c, 1);
         if (bytes_read <= 0) break;
+
         act = nav_screen.keybind(c);
+
         if (act == ACTION_EXIT) break;
         if (act == ACTION_REFRESH) {
             clear_screen();

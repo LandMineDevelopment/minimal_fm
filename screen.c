@@ -3,6 +3,7 @@
 #include "syscall.h"
 #include "string.h"
 #include "screen.h"
+#include "dir.h"
 
 struct timespec {
     long tv_sec;   // seconds
@@ -56,12 +57,10 @@ void draw(int x_start, int x_stop, int y_start, int y_stop, void (*func)(int, in
 }
 
 void nav_draw(Screen *screen_ptr) {
-    const char* box_fill[3] = {"x","y","z"};
-    for (int i = 0; i < screen_ptr->num_boxes; i++) {
-        fill_char(box_fill[i],
-                  screen_ptr->box_offset_x[i], screen_ptr->box_offset_x[i] + screen_ptr->box_width[i],
-                  screen_ptr->box_offset_y[i], screen_ptr->box_offset_y[i] + screen_ptr->box_height[i]);
-    }
+    // draw_cwd(screen_ptr->box_offset_x[1], screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
+    //           screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);
+    draw_dir_listing(screen_ptr->box_offset_x[1], screen_ptr->box_offset_x[1] + screen_ptr->box_width[1],
+              screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);
 }
 
 unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short height){
@@ -73,9 +72,9 @@ unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short
     screen->box_offset_x[1] = width/3;
     screen->box_offset_x[2] = width*2/3;
 
-    screen->box_offset_y[0] = 0;
-    screen->box_offset_y[1] = 0;
-    screen->box_offset_y[2] = 0;
+    screen->box_offset_y[0] = 1;
+    screen->box_offset_y[1] = 1;
+    screen->box_offset_y[2] = 1;
 
     screen->box_width[0] = width/3;
     screen->box_width[1] = width/3;

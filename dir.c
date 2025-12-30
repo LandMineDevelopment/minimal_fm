@@ -1,158 +1,88 @@
-#include "defs.h"
+#include "defs.h"      // for SYS_GETCWD, MAX_PATH
 #include "syscall.h"
+#include "ansi.h"      // for move_cursor, write_str
 #include "string.h"
-#include "dir.h"
 
-// Linux dirent64 structure (from kernel headers, minimal version)
-struct linux_dirent64 {
-    unsigned long long d_ino;
-    unsigned long long d_off;
-    unsigned short     d_reclen;
-    unsigned char      d_type;
-    char               d_name[];
-};
 
-static void sort_entries(Entry entries[], int count) {
-    // Simple bubble sort: directories first, then alpha by name
-    for (int i = 0; i < count - 1; i++) {
-        for (int j = i + 1; j < count; j++) {
-            int swap = 0;
-            if (entries[i].type != DT_DIR && entries[j].type == DT_DIR) {
-                swap = 1;  // dir before non-dir
-            } else if (entries[i].type == entries[j].type) {
-                if (my_strcmp(entries[i].name, entries[j].name) > 0) {
-                    swap = 1;  // alpha within same type
-                }
-            }
-            if (swap) {
-                Entry temp = entries[i];
-                entries[i] = entries[j];
-                entries[j] = temp;
-            }
-        }
+void draw_cwd(unsigned short x_start, unsigned short x_stop,
+              unsigned short y_start, unsigned short y_stop)
+{
+    unsigned short max_path = x_stop - x_start;
+    char cwd[max_path ];
+    long ret = syscall2(SYS_GETCWD, (long)&cwd, max_path);
+
+    if (ret < 0) {
+        const char *err = "[CWD ERROR]";
+        ret = 10;
+        for (int i = 0; i < ret; i++) cwd[i] = err[i];
+        cwd[ret] = '\0';
+    } else {
+        cwd[ret] = '\0';
     }
+
+    unsigned short width = x_stop - x_start + 1;
+    unsigned short height = y_stop - y_start + 1;
+
+    save_cursor();
+
+    unsigned short i = 0;
+    for (unsigned short row = y_start; row <= y_stop; row++) {
+        move_cursor(x_start,row);
+
+        while (i < width && cwd[i] != '\0') {
+            write_str(&cwd[i], 1);
+            i++;
+       }
+    }
+
+    restore_cursor();
 }
 
-void load_dir_into(const char *path, Entry entries[], int *count) {
-    *count = 0;
 
-    long fd = syscall2(SYS_OPEN, (long)path, O_DIRECTORY);
-    if (fd < 0) {
-        my_strcpy(app_state.error_msg, "Open dir failed");
+#define MAX_DIRENT_BUF 8192
+
+int list_dir_entries(char *buf, int buf_size)
+{
+    long fd = syscall2(SYS_OPEN, (long)".", O_DIRECTORY | O_RDONLY);
+    if (fd < 0) return -1;
+
+    long nread = syscall3(SYS_GETDENTS64, fd, (long)buf, buf_size);
+    syscall1(SYS_CLOSE, fd);
+
+    if (nread < 0) return -1;
+    return nread;  // number of bytes read
+}
+
+void draw_dir_listing(unsigned short x_start, unsigned short x_stop,
+                      unsigned short y_start, unsigned short y_stop)
+{
+    // char buf[32 + (1 + x_stop - x_start) * (1 + y_stop - y_start) ];
+    char buf[MAX_DIRENT_BUF];
+    int nread = list_dir_entries(buf, sizeof(buf));
+    if (nread <= 0) {
+        move_cursor(x_start, y_start);
+        write_str("[NO FILES]", 10);
         return;
     }
 
-    char buf[4096];
-    while (1) {
-        long bytes = syscall3(SYS_GETDENTS64, fd, (long)buf, sizeof(buf));
-        if (bytes <= 0) break;
+    save_cursor();
+    unsigned short curr_row = y_start;
+    unsigned short curr_col = x_start;
+    int pos = 0;
+    while (pos < nread && curr_row <= y_stop) {
+    // while (pos < nread ) {
+        move_cursor(x_start, curr_row);
 
-        char *p = buf;
-        while (p < buf + bytes) {
-            struct linux_dirent64 *d = (struct linux_dirent64 *)p;
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
 
-            // Skip . and ..
-            if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
-                                        (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
-                p += d->d_reclen;
-                continue;
-            }
+        unsigned short len_write = 0;
+        if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
+        else len_write = my_strlen(d->d_name);
+        write_str(d->d_name, len_write);
 
-            // Skip hidden if !show_hidden
-            if (!app_state.show_hidden && d->d_name[0] == '.') {
-                p += d->d_reclen;
-                continue;
-            }
-
-            // Copy name
-            my_strcpy(entries[*count].name, d->d_name);
-
-            // Set type and clear flags/extension
-            entries[*count].type = d->d_type;
-            entries[*count].flags = 0;
-            entries[*count].extension[0] = '\0';
-
-            // Set FLAG_HIDDEN
-            if (d->d_name[0] == '.') {
-                entries[*count].flags |= FLAG_HIDDEN;
-            }
-
-            // Extract extension (after last '.')
-            const char *dot = 0;
-            const char *c = d->d_name;
-            while (*c) {
-                if (*c == '.') dot = c;
-                c++;
-            }
-            if (dot && dot != d->d_name && *(dot + 1)) {
-                my_strcpy(entries[*count].extension, dot + 1);
-            }
-
-            // Set FLAG_EMPTY_DIR if directory
-            if (d->d_type == DT_DIR) {
-                char full_subpath[MAX_PATH];
-                path_build(full_subpath, path, d->d_name);
-                if (dir_is_empty(full_subpath)) {
-                    entries[*count].flags |= FLAG_EMPTY_DIR;
-                }
-            }
-
-            (*count)++;
-            if (*count >= MAX_ENTRIES) goto done;
-
-            p += d->d_reclen;
-        }
+        pos += d->d_reclen;
+        curr_row += 1;
     }
 
-done:
-    sort_entries(entries, *count);
-    syscall1(SYS_CLOSE, fd);  // ignore error
-}
-
-void load_directories(void) {
-    load_dir_into(".", app_state.current_entries, &app_state.num_current);
-    load_dir_into("..", app_state.parent_entries, &app_state.num_parent);
-
-    // Clear selections on reload
-    for (int i = 0; i < app_state.num_current; i++) {
-        app_state.current_entries[i].flags &= ~FLAG_SELECTED;
-    }
-}
-
-void update_cursor_limits(void) {
-    int count = (app_state.in_modal_input && app_state.modal_context == CTX_SEARCH)
-                ? app_state.num_filtered
-                : app_state.num_current;
-
-    app_state.cursor_min = 0;
-    app_state.cursor_max = count > 0 ? count - 1 : 0;
-    if (app_state.cursor_loc < app_state.cursor_min) app_state.cursor_loc = app_state.cursor_min;
-    if (app_state.cursor_loc > app_state.cursor_max) app_state.cursor_loc = app_state.cursor_max;
-}
-
-int dir_is_empty(const char *path) {
-    long fd = syscall2(SYS_OPEN, (long)path, O_DIRECTORY);
-    if (fd < 0) return -1;
-
-    char buf[4096];
-    int non_dot_count = 0;
-
-    while (1) {
-        long bytes = syscall3(SYS_GETDENTS64, fd, (long)buf, sizeof(buf));
-        if (bytes <= 0) break;
-
-        char *p = buf;
-        while (p < buf + bytes) {
-            struct linux_dirent64 *d = (struct linux_dirent64 *)p;
-
-            if (d->d_name[0] != '.' ||
-                (d->d_name[1] != '\0' && (d->d_name[1] != '.' || d->d_name[2] != '\0'))) {
-                non_dot_count++;
-            }
-            p += d->d_reclen;
-        }
-    }
-
-    syscall1(SYS_CLOSE, fd);
-    return non_dot_count == 0;
+    restore_cursor();
 }
