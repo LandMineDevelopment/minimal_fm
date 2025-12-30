@@ -4,6 +4,44 @@
 #include "string.h"
 #include "screen.h"
 #include "dir.h"
+Screen nav_screen = {
+    .height = 0,
+    .width = 0,
+    .top_margin = 0,
+    .bottom_margin = 0,
+    .left_margin = 0,
+    .right_margin = 0,
+    .top_border = ' ',
+    .bottom_border = ' ',
+    .left_border = ' ',
+    .right_border = ' ',
+
+    //Grid
+    .grid_cols = 3,
+    .grid_rows = 1,
+    .grid_dim_type = RELATIVE,
+    .grid_cols_dims = {1, 1, 2},
+    .grid_row_dims = {1},
+
+    // .keybind = nav_keybinds,
+    // .update = nav_update,
+    //
+    //Boxes
+    .num_boxes = 3,
+    .box_height = {0,0,0},
+    .box_width = {0,0,0},
+    // unsigned short box_width[MAX_BOXES_PER_SCREEN];
+    // unsigned short box_top_margin[MAX_BOXES_PER_SCREEN];
+    // unsigned short box_bottom_margin[MAX_BOXES_PER_SCREEN];
+    // unsigned short box_left_margin[MAX_BOXES_PER_SCREEN];
+    // unsigned short box_right_margin[MAX_BOXES_PER_SCREEN];
+    // char box_top_border[MAX_BOXES_PER_SCREEN];
+    // char box_bottom_border[MAX_BOXES_PER_SCREEN];
+    // char box_left_border[MAX_BOXES_PER_SCREEN];
+    // char box_right_border[MAX_BOXES_PER_SCREEN];
+    // keybind_func box_keybind[MAX_BOXES_PER_SCREEN];
+    // update_func box_update[MAX_BOXES_PER_SCREEN];
+};
 
 struct timespec {
     long tv_sec;   // seconds
@@ -67,9 +105,11 @@ void nav_draw(Screen *screen_ptr) {
               screen_ptr->box_offset_y[1], screen_ptr->box_offset_y[1] + screen_ptr->box_height[1]);
 }
 
-unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short height){
+// unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short height){
+unsigned short nav_update(unsigned short width, unsigned short height){
     clear_screen();
-    Screen *screen = (Screen *)screen_ptr;
+    // Screen *screen = (Screen *)screen_ptr;
+    Screen *screen = &nav_screen;
     screen->width = width;
     screen->height = height;
 
@@ -92,55 +132,13 @@ unsigned short nav_update(void *screen_ptr, unsigned short width, unsigned short
     nav_draw(screen);
 }
 
-unsigned short nav_keybinds(char key){
-    if (key == 'q') return ACTION_EXIT;
-    else if (key == 'r') return ACTION_REFRESH;
-    return ACTION_NOTHING;
-}
-unsigned short nav_keybind(char key, Screen *screen, unsigned short width, unsigned short height){
+unsigned short nav_keybind(char key, unsigned short width, unsigned short height){
     if (key == 'q') return ACTION_EXIT;
     else if (key == 'r') {
-        nav_update(screen, width, height);
+        nav_update(width, height);
         return ACTION_REFRESH;
     }
     return ACTION_NOTHING;
 }
 
-Screen nav_screen = {
-    .height = 0,
-    .width = 0,
-    .top_margin = 0,
-    .bottom_margin = 0,
-    .left_margin = 0,
-    .right_margin = 0,
-    .top_border = ' ',
-    .bottom_border = ' ',
-    .left_border = ' ',
-    .right_border = ' ',
 
-    //Grid
-    .grid_cols = 3,
-    .grid_rows = 1,
-    .grid_dim_type = RELATIVE,
-    .grid_cols_dims = {1, 1, 2},
-    .grid_row_dims = {1},
-
-    // .keybind = nav_keybinds,
-    // .update = nav_update,
-    //
-    //Boxes
-    .num_boxes = 3,
-    .box_height = {0,0,0},
-    .box_width = {0,0,0},
-    // unsigned short box_width[MAX_BOXES_PER_SCREEN];
-    // unsigned short box_top_margin[MAX_BOXES_PER_SCREEN];
-    // unsigned short box_bottom_margin[MAX_BOXES_PER_SCREEN];
-    // unsigned short box_left_margin[MAX_BOXES_PER_SCREEN];
-    // unsigned short box_right_margin[MAX_BOXES_PER_SCREEN];
-    // char box_top_border[MAX_BOXES_PER_SCREEN];
-    // char box_bottom_border[MAX_BOXES_PER_SCREEN];
-    // char box_left_border[MAX_BOXES_PER_SCREEN];
-    // char box_right_border[MAX_BOXES_PER_SCREEN];
-    // keybind_func box_keybind[MAX_BOXES_PER_SCREEN];
-    // update_func box_update[MAX_BOXES_PER_SCREEN];
-};

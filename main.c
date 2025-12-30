@@ -44,8 +44,8 @@ void _start(void) {
 
     struct winsize ws;
     syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
-    nav_screen.height = ws.ws_row;
-    nav_screen.width = ws.ws_col;
+    // nav_screen.height = ws.ws_row;
+    // nav_screen.width = ws.ws_col;
 
     // 4. Raw mode
     struct termios oldt;
@@ -56,8 +56,8 @@ void _start(void) {
         newt.c_lflag &= ~(ICANON | ECHO);
         syscall3(SYS_IOCTL, 0, TCSETS, (long)&newt);
     }
-    nav_screen.width = ws.ws_col;
-    nav_screen.height = ws.ws_row;
+    // nav_screen.width = ws.ws_col;
+    // nav_screen.height = ws.ws_row;
 
     // 5. Main loop
     // hide_cursor();
@@ -75,7 +75,8 @@ void _start(void) {
 
         syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
         // act = nav_screen.keybind(c);
-        act = nav_keybind(c, &nav_screen, ws.ws_col, ws.ws_row);
+        // act = nav_keybind(c, &nav_screen, ws.ws_col, ws.ws_row);
+        act = nav_keybind(c, ws.ws_col, ws.ws_row);
 
         if (act == ACTION_EXIT) break;
         // if (act == ACTION_REFRESH) {

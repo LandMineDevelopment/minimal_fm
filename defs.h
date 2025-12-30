@@ -179,6 +179,11 @@ typedef struct {
 } Screen;
 
 typedef struct {
+    Screen *screen;
+    unsigned short cursor_loc;
+} NavScreen;
+
+typedef struct {
     struct termios oldt;
     struct termios newt;
 
