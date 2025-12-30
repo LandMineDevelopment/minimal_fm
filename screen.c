@@ -132,10 +132,10 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_draw(screen);
 }
 
-unsigned short nav_keybind(char key, unsigned short width, unsigned short height){
+unsigned short nav_keybind(char key) {
     if (key == 'q') return ACTION_EXIT;
     else if (key == 'r') {
-        nav_update(width, height);
+        nav_update(nav_screen.width, nav_screen.height);
         return ACTION_REFRESH;
     }
     return ACTION_NOTHING;

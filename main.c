@@ -74,9 +74,10 @@ void _start(void) {
         if (bytes_read <= 0) break;
 
         syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+        nav_update(ws.ws_col, ws.ws_row);
         // act = nav_screen.keybind(c);
         // act = nav_keybind(c, &nav_screen, ws.ws_col, ws.ws_row);
-        act = nav_keybind(c, ws.ws_col, ws.ws_row);
+        act = nav_keybind(c);
 
         if (act == ACTION_EXIT) break;
         // if (act == ACTION_REFRESH) {
