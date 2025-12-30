@@ -4,7 +4,7 @@
 #include "screen.h"
 #include "string.h"
 #include "ansi.h"
-#include "draw.h"
+// #include "draw.h"
 
 // Global state instance
 
@@ -56,6 +56,8 @@ void _start(void) {
         newt.c_lflag &= ~(ICANON | ECHO);
         syscall3(SYS_IOCTL, 0, TCSETS, (long)&newt);
     }
+    nav_screen.width = ws.ws_col;
+    nav_screen.height = ws.ws_row;
 
     // 5. Main loop
     // hide_cursor();
@@ -67,18 +69,18 @@ void _start(void) {
     int curr_y = 0;
     char c;
     unsigned short act = ACTION_NOTHING;
-    unsigned short  run = 1;
     while (1) {
         long bytes_read = syscall3(SYS_READ, 0, (long)&c, 1);
         if (bytes_read <= 0) break;
         act = nav_screen.keybind(c);
-        if (act = ACTION_EXIT) break;
-        // if (c == 'q') break;
-        if (c == 'd') {
+        if (act == ACTION_EXIT) break;
+        if (act == ACTION_REFRESH) {
             clear_screen();
-            // draw(0,ws.ws_col,0,ws.ws_row + 1, draw_x);
-            draw(0,ws.ws_col,0,ws.ws_row + 1, fill_x);
-            // draw(0,5,0, 5 + 1, fill_x);
+            syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+            nav_screen.update(&nav_screen, ws.ws_col, ws.ws_row);
+        }
+        if (c == 'd') {
+            fill_x(0,ws.ws_col,0,ws.ws_row + 1);
         }
         if (c == 'c') {
             clear_section(0,ws.ws_col,0,ws.ws_row + 1);

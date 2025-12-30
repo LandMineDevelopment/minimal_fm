@@ -33,7 +33,7 @@
 #define DT_UNKNOWN 0
 #define DT_DIR 4
 #define DT_REG 8
-typedef void (*update_func)(void);
+typedef unsigned short (*update_func)(void *Screen, unsigned short, unsigned short);
 typedef unsigned short (*keybind_func)(char);
 
 // Term flags
@@ -66,9 +66,11 @@ typedef unsigned short (*keybind_func)(char);
 #define RELATIVE 1
 
 //Actions
-#define ACTION_NOTHING 0
-#define ACTION_EXIT 1
-
+typedef enum {
+    ACTION_NOTHING,
+    ACTION_EXIT,
+    ACTION_REFRESH,
+} Action;
 
 #define SYS_nanosleep 35
 // Preview modes
@@ -150,6 +152,9 @@ typedef struct {
     update_func update;
 
     //Boxes
+    unsigned short num_boxes;
+    unsigned short box_offset_x[MAX_BOXES_PER_SCREEN];
+    unsigned short box_offset_y[MAX_BOXES_PER_SCREEN];
     unsigned short box_height[MAX_BOXES_PER_SCREEN];
     unsigned short box_width[MAX_BOXES_PER_SCREEN];
     unsigned short box_top_margin[MAX_BOXES_PER_SCREEN];
