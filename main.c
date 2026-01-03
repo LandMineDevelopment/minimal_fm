@@ -62,6 +62,7 @@ void _start(void) {
     // 5. Main loop
     // hide_cursor();
     clear_screen();
+    set_current_dir();
     // move_cursor(5, 10);
     write_str("hello, world", 12);
     move_cursor(ws.ws_col, ws.ws_row);
@@ -75,15 +76,10 @@ void _start(void) {
 
         syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
         nav_update(ws.ws_col, ws.ws_row);
-        // act = nav_screen.keybind(c);
-        // act = nav_keybind(c, &nav_screen, ws.ws_col, ws.ws_row);
         act = nav_keybind(c);
 
         if (act == ACTION_EXIT) break;
-        // if (act == ACTION_REFRESH) {
-        //     syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
-        //     nav_screen.update(&nav_screen, ws.ws_col, ws.ws_row);
-        // }
+
         if (c == 'd' && act == ACTION_NOTHING) {
             fill_x(0,ws.ws_col,0,ws.ws_row + 1);
         }
@@ -106,25 +102,7 @@ void _start(void) {
             if (curr_x < ws.ws_col) curr_x++;
             move_cursor(curr_x,curr_y);
         }
-
-        // Resize poll
-        // struct winsize ws;
-        // ret = syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
-        // if (ret == 0 && (ws.ws_row != app_state.height || ws.ws_col != app_state.width)) {
-        //     app_state.height = ws.ws_row;
-        //     app_state.width = ws.ws_col;
-        //     refresh_and_redraw();
-        // }
-
-        // int action = handle_key(c);
-
-        // if (action == ACTION_EXIT) break;
-        // if (action == ACTION_REFRESH) refresh_and_redraw();
-        // if (action == ACTION_REDRAW) {
-        //     build_screen();
-        //     draw_screen();
-        // }
-    }
+   }
 
     // 6. Restore terminal
     syscall3(SYS_IOCTL, 0, TCSETS, (long)&oldt);

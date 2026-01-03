@@ -3,13 +3,12 @@
 #include "ansi.h"      // for move_cursor, write_str
 #include "string.h"
 
-#define MAX_DIRENT_BUF 8192
 
 void draw_cwd(unsigned short x_start, unsigned short x_stop,
               unsigned short y_start, unsigned short y_stop)
 {
     unsigned short max_path = x_stop - x_start;
-    char cwd[max_path ];
+    char cwd[max_path];
     long ret = syscall2(SYS_GETCWD, (long)&cwd, max_path);
 
     if (ret < 0) {
@@ -51,7 +50,7 @@ int list_dir_entries(long dir_type, char *buf, int buf_size)
     return nread;
 }
 
-void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_stop,
+unsigned short draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_stop,
                       unsigned short y_start, unsigned short y_stop)
 {
     char buf[MAX_DIRENT_BUF];
@@ -59,7 +58,7 @@ void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_st
     if (nread <= 0) {
         move_cursor(x_start, y_start);
         write_str("[NO FILES]", 10);
-        return;
+        return 0;
     }
 
     save_cursor();
@@ -83,4 +82,6 @@ void draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_st
     }
 
     restore_cursor();
+    return curr_row;
 }
+

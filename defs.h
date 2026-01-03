@@ -51,6 +51,7 @@ typedef unsigned short (*keybind_func)(char);
 #define MAX_ERROR_LEN 128
 #define MAX_EXT_LEN 16
 #define MAX_PREVIEW_LINES 20
+#define MAX_DIRENT_BUF 8192
 #define MAX_BOXES_PER_SCREEN 15
 #define NUM_SCREENS 1
 
@@ -70,6 +71,7 @@ typedef enum {
     ACTION_NOTHING,
     ACTION_EXIT,
     ACTION_REFRESH,
+    ACTION_KEYBIND,
 } Action;
 
 #define SYS_nanosleep 35
@@ -94,7 +96,6 @@ struct linux_dirent64 {
     char               d_name[];
 };
 
-// Unified entry structure
 typedef struct {
     char name[MAX_NAME_LEN];
     unsigned char type;
@@ -179,36 +180,10 @@ typedef struct {
 } Screen;
 
 typedef struct {
-    Screen *screen;
-    unsigned short cursor_loc;
-} NavScreen;
-
-typedef struct {
-    struct termios oldt;
-    struct termios newt;
-
-    Screen screens[NUM_SCREENS];
-    const char *editor_cmd;
-
-    char clipboard_paths[MAX_CLIPBOARD][MAX_PATH];
-    unsigned char clipboard_types[MAX_CLIPBOARD];
-    int num_clipboard;
-    int is_cut;
-
-    // Input state
-    int in_modal_input;
-    unsigned char modal_context;  // Changed from uint8_t
-
-    char error_msg[MAX_ERROR_LEN];
-
-    char input_buffer[MAX_NAME_LEN];
-    int input_len;
-
-    int delete_multi;
-    int delete_recursive;
-} AppState;
-
-
-// Globals
-extern AppState app_state;
-extern const char *editor_paths[];
+    unsigned short cursor_x;
+    unsigned short cursor_y;
+    unsigned short cursor_max_x;
+    unsigned short cursor_max_y;
+    unsigned short cursor_min_x;
+    unsigned short cursor_min_y;
+} Cursor;
