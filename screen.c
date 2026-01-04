@@ -13,19 +13,16 @@ unsigned short parent_path_len;
 char child_obj[MAX_PATH];
 unsigned short child_path_len;
 char current_dir_items[MAX_DIRENT_BUF];
-unsigned short current_item = 0;
-unsigned short current_item_type = 0;
-unsigned short num_dir_items = 0;
+int current_item = 0;
+int current_item_type = 0;
+int num_dir_items = 0;
 int size_of_dir_items;
 Entry items[30];
 unsigned short item_ind;
 
-void set_current_dir(void){
-    cwd_path_len = syscall2(SYS_GETCWD, (long)&cwd, sizeof(cwd));
-    syscall2(SYS_GETCWD, (long)&parent_dir, sizeof(parent_dir));
-    syscall2(SYS_GETCWD, (long)&child_obj, sizeof(child_obj));
-    go_to_parent_dir(parent_dir);
-    parent_path_len = my_strlen(parent_dir);
+void set_dir_items(void){
+    num_dir_items = 0;
+    current_item = 0;
     size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
     int pos = 0;
     while (pos < size_of_dir_items) {
@@ -43,6 +40,32 @@ void set_current_dir(void){
         // child_obj[cwd_path_len + i] = '\0';
         current_item_type = d->d_type;
     }
+}
+
+void set_current_dir(void){
+    cwd_path_len = syscall2(SYS_GETCWD, (long)&cwd, sizeof(cwd));
+    syscall2(SYS_GETCWD, (long)&parent_dir, sizeof(parent_dir));
+    syscall2(SYS_GETCWD, (long)&child_obj, sizeof(child_obj));
+    go_to_parent_dir(parent_dir);
+    parent_path_len = my_strlen(parent_dir);
+    set_dir_items();
+    // size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
+    // int pos = 0;
+    // while (pos < size_of_dir_items) {
+    //     struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
+    //     num_dir_items++;
+    //     pos += d->d_reclen;
+    // }
+    //
+    // if (num_dir_items > 0) {
+    //     struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items );
+    //     unsigned short obj_len = my_strlen(d->d_name);
+    //     unsigned short i;
+    //     path_build(child_obj, cwd, d->d_name);
+    //
+    //     // child_obj[cwd_path_len + i] = '\0';
+    //     current_item_type = d->d_type;
+    // }
 }
 
 
@@ -238,8 +261,8 @@ unsigned short nav_keybind(char key) {
         if (current_item > num_dir_items - 1) current_item = 0;
 
         struct linux_dirent64 *d = 0;
-        unsigned short i = 0;
-        for (unsigned short count = 0; count <= current_item; count++){
+        int i = 0;
+        for (int count = 0; count <= current_item; count++){
             d = (struct linux_dirent64 *)(current_dir_items + i);
             i += d->d_reclen;
         }
@@ -254,8 +277,6 @@ unsigned short nav_keybind(char key) {
                     nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
         }
 
-
-
         return ACTION_KEYBIND;
     }
     else if (key == 'i') {
@@ -267,8 +288,26 @@ unsigned short nav_keybind(char key) {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
         write_str(">",1);
 
-        // current_item++;
-        // if (current_item > num_dir_items - 1) current_item = 0;
+        current_item--;
+        if (current_item < 0) current_item = num_dir_items -1;
+
+        struct linux_dirent64 *d = 0;
+        int i = 0;
+        for (int count = 0; count <= current_item; count++){
+            d = (struct linux_dirent64 *)(current_dir_items + i);
+            i += d->d_reclen;
+        }
+        // write_str( d->d_name, my_strlen(d->d_name) );
+
+        path_build(child_obj, cwd, d->d_name);
+        write_str( child_obj, my_strlen(child_obj) );
+
+        current_item_type = d->d_type;
+        if (current_item_type == DT_DIR){
+            draw_dir_listing((long)child_obj,
+                    nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
+                    nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
+        }
 
         return ACTION_KEYBIND;
     }
@@ -276,8 +315,28 @@ unsigned short nav_keybind(char key) {
         go_to_parent_dir(cwd);
         go_to_parent_dir(parent_dir);
         go_to_parent_dir(child_obj);
+        go_to_parent_dir(child_obj);
+        set_dir_items();
+        // size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
+        // current_item = 0;
+        // int pos = 0;
+        // while (pos < size_of_dir_items) {
+        //     struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
+        //     num_dir_items++;
+        //     pos += d->d_reclen;
+        // }
+        // if (num_dir_items > 0) {
+        //         struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items );
+        //         unsigned short obj_len = my_strlen(d->d_name);
+        //         unsigned short i;
+        //         path_build(child_obj, cwd, d->d_name);
+        //
+        //         // child_obj[cwd_path_len + i] = '\0';
+        //         current_item_type = d->d_type;
+        // }
         nav_cursor.cursor_y = 1;
         nav_update(nav_screen.width, nav_screen.height);
+        write_str("+",1);
     }
     return ACTION_NOTHING;
 }
