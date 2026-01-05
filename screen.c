@@ -274,16 +274,21 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_screen.height = height;
 
     nav_screen.box_offset_x[0] = 0;
-    nav_screen.box_offset_x[1] = width/3;
-    nav_screen.box_offset_x[2] = width*2/3;
+    // nav_screen.box_offset_x[1] = width/3;
+    // nav_screen.box_offset_x[2] = width*2/3;
+    nav_screen.box_offset_x[1] = width/4;
+    nav_screen.box_offset_x[2] = width*1/2;
 
     nav_screen.box_offset_y[0] = 1;
     nav_screen.box_offset_y[1] = 1;
     nav_screen.box_offset_y[2] = 1;
 
-    nav_screen.box_width[0] = width/3;
-    nav_screen.box_width[1] = width/3;
-    nav_screen.box_width[2] = width/3;
+    // nav_screen.box_width[0] = width/3;
+    // nav_screen.box_width[1] = width/3;
+    // nav_screen.box_width[2] = width/3;
+    nav_screen.box_width[0] = width/4;
+    nav_screen.box_width[1] = width/4;
+    nav_screen.box_width[2] = width/2;
 
     nav_screen.box_height[0] = height;
     nav_screen.box_height[1] = height;
@@ -352,16 +357,9 @@ unsigned short nav_keybind(char key) {
         }
 
         path_build(child_obj, cwd, d->d_name);
-        write_str( child_obj, my_strlen(child_obj) );
 
         current_item_type = d->d_type;
         draw_child_box();
-        // if (current_item_type == DT_DIR){
-            // draw_dir_listing((long)child_obj,
-            //         nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
-            //         nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
-        // }
-
         return ACTION_KEYBIND;
     }
     else if (key == 'j') {
