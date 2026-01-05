@@ -47,23 +47,6 @@ void set_current_dir(void){
     go_to_parent_dir(parent_dir);
     parent_path_len = my_strlen(parent_dir);
     set_dir_items();
-    // size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
-    // int pos = 0;
-    // while (pos < size_of_dir_items) {
-    //     struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
-    //     num_dir_items++;
-    //     pos += d->d_reclen;
-    // }
-    //
-    // if (num_dir_items > 0) {
-    //     struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items );
-    //     unsigned short obj_len = my_strlen(d->d_name);
-    //     unsigned short i;
-    //     path_build(child_obj, cwd, d->d_name);
-    //
-    //     // child_obj[cwd_path_len + i] = '\0';
-    //     current_item_type = d->d_type;
-    // }
 }
 
 
@@ -192,6 +175,87 @@ void draw(int x_start, int x_stop, int y_start, int y_stop, void (*func)(int, in
     func(x_start, x_stop, y_start, y_stop);
 }
 
+void draw_parent_box() {
+    draw_dir_listing((long)parent_dir,
+              nav_screen.box_offset_x[0], nav_screen.box_offset_x[0] + nav_screen.box_width[0],
+              nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
+}
+
+void draw_current_box() {
+    nav_cursor.cursor_max_y = draw_dir_listing((long)cwd,
+              nav_screen.box_offset_x[1] + 1, nav_screen.box_offset_x[1] + nav_screen.box_width[1],
+              nav_screen.box_offset_y[1], nav_screen.box_offset_y[1] + nav_screen.box_height[1]);
+    move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
+    write_str(">",1);
+}
+
+void draw_child_box() {
+    clear_section( nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2], nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
+    if (current_item_type == DT_DIR){
+        draw_dir_listing((long)child_obj,
+                nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
+                nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
+    }
+    else if (current_item_type == DT_REG) {
+        long fd = syscall2(SYS_OPEN, (long)child_obj, O_RDONLY);
+        if (fd < 0) {
+            move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
+            write_str("Cannot open", 11);
+            return;
+        }
+
+        char line_buf[nav_screen.box_width[2] * nav_screen.box_height[2]];
+        for (int i = 0; i < nav_screen.box_width[2]; i++) {
+            line_buf[i] = ' ';
+        }
+        int line_count = 0;
+        // int pos = 0;
+        unsigned short pos = 0;
+        char is_text = 1;
+        int curr_buff_ind = 0;
+
+        move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
+        // while (line_count < nav_screen.box_width[2] && nav_screen.box_offset_y[2] + line_count < nav_screen.box_height[2] ) {
+        while (line_count < nav_screen.box_height[2] ) {
+            long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf) - 1);
+            if (ret <= 0) break;
+            // while (line_buf[curr_buff_ind] && pos < width) {
+            // while (line_buf[curr_buff_ind] && nav_screen.box_offset_y[2] + line_count < nav_screen.box_height[2] ) {
+            while (line_buf[curr_buff_ind] && line_count < nav_screen.box_height[2] ) {
+                // msleep(10);
+                char c = line_buf[curr_buff_ind];
+                // if ( 25 > nav_screen.box_width[2] ) {move_cursor(1,1); write_str("f", 1);}
+                // if (c == '\n' || pos > nav_screen.box_width[2]) {
+                if (c == '\n' || pos > nav_screen.box_width[2]) {
+                    pos = 0;
+                    line_count++;
+                    move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
+                } else if (c == '\0' ||
+                    ((unsigned char)c < 0x20 && c != '\t' && c != '\n' && c != '\r')) { 
+                    is_text = 0;
+                    goto binary;
+                } else {
+                    write_str(&c, 1);
+                    pos++;
+                }
+                curr_buff_ind++;
+                // if (pos >= nav_screen.box_width[2] ) {
+                //    pos = 0;
+                // }
+            }
+        }
+        if (!is_text){
+            binary:
+            const char *msg = "Binary file";
+            move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
+            write_str("Binary file", 11);
+        }
+
+        syscall1(SYS_CLOSE, fd);
+    }
+
+}
+
 void nav_draw() {
     //draw parent box
     draw_dir_listing((long)parent_dir,
@@ -237,7 +301,10 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
     if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
 
-    nav_draw();
+    // nav_draw();
+    draw_parent_box();
+    draw_current_box();
+    draw_child_box();
 }
 
 unsigned short nav_keybind(char key) {
@@ -269,11 +336,12 @@ unsigned short nav_keybind(char key) {
         write_str( child_obj, my_strlen(child_obj) );
 
         current_item_type = d->d_type;
-        if (current_item_type == DT_DIR){
-            draw_dir_listing((long)child_obj,
-                    nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
-                    nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
-        }
+        draw_child_box();
+        // if (current_item_type == DT_DIR){
+        //     draw_dir_listing((long)child_obj,
+        //             nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
+        //             nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
+        // }
 
         return ACTION_KEYBIND;
     }
@@ -300,11 +368,12 @@ unsigned short nav_keybind(char key) {
         write_str( child_obj, my_strlen(child_obj) );
 
         current_item_type = d->d_type;
-        if (current_item_type == DT_DIR){
-            draw_dir_listing((long)child_obj,
-                    nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
-                    nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
-        }
+        draw_child_box();
+        // if (current_item_type == DT_DIR){
+            // draw_dir_listing((long)child_obj,
+            //         nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
+            //         nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
+        // }
 
         return ACTION_KEYBIND;
     }
@@ -324,5 +393,3 @@ unsigned short nav_keybind(char key) {
     }
     return ACTION_NOTHING;
 }
-
-

@@ -84,6 +84,7 @@ void _start(void) {
             fill_x(0,ws.ws_col,0,ws.ws_row + 1);
         }
         if (c == 'c' && act == ACTION_NOTHING) {
+            // clear_section(0,ws.ws_col,0,ws.ws_row + 1);
             clear_section(0,ws.ws_col,0,ws.ws_row + 1);
         }
         if (c == 'i' && act == ACTION_NOTHING) {

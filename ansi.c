@@ -21,15 +21,6 @@ void clear_to_screen_end(void) {
     write_ansi("\x1b[0J", 4);
 }
 
-// Clear retangular section
-void clear_section(unsigned short x_start,unsigned short x_stop,unsigned short y_start,unsigned short y_stop) {
-    for (unsigned short row = y_start; row <= y_stop; ++row) {
-        move_cursor(x_start, row);
-        for (unsigned short col = x_start; col <= x_stop; ++col) {
-            write_str(" ", 1);
-        }
-    }
-}
 
 // Move cursor to absolute position (row/col are 1-based)
 void move_cursor(unsigned short col, unsigned short row) {
@@ -58,6 +49,19 @@ void move_cursor(unsigned short col, unsigned short row) {
     buf[len++] = 'H';
 
     write_ansi(buf, len);
+}
+// Clear retangular section
+void clear_section(unsigned short x_start,unsigned short x_stop,unsigned short y_start,unsigned short y_stop) {
+    // write_str("x", 1);
+    // if (x_start >= x_stop) write_str("n",1);
+    for (unsigned short row = y_start; row <= y_stop; ++row) {
+        // write_str("y", 1);
+        move_cursor(x_start, row);
+        for (unsigned short col = x_start; col <= x_stop; ++col) {
+            // write_str("z", 1);
+            write_str(" ", 1);
+        }
+    }
 }
 
 // void move_cursor(unsigned short col, unsigned short row) {
