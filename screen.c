@@ -215,17 +215,12 @@ void draw_child_box() {
         int curr_buff_ind = 0;
 
         move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
-        // while (line_count < nav_screen.box_width[2] && nav_screen.box_offset_y[2] + line_count < nav_screen.box_height[2] ) {
         while (line_count < nav_screen.box_height[2] ) {
             long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf) - 1);
             if (ret <= 0) break;
-            // while (line_buf[curr_buff_ind] && pos < width) {
-            // while (line_buf[curr_buff_ind] && nav_screen.box_offset_y[2] + line_count < nav_screen.box_height[2] ) {
             while (line_buf[curr_buff_ind] && line_count < nav_screen.box_height[2] ) {
                 // msleep(10);
                 char c = line_buf[curr_buff_ind];
-                // if ( 25 > nav_screen.box_width[2] ) {move_cursor(1,1); write_str("f", 1);}
-                // if (c == '\n' || pos > nav_screen.box_width[2]) {
                 if (c == '\n' || pos > nav_screen.box_width[2]) {
                     pos = 0;
                     line_count++;
@@ -239,9 +234,6 @@ void draw_child_box() {
                     pos++;
                 }
                 curr_buff_ind++;
-                // if (pos >= nav_screen.box_width[2] ) {
-                //    pos = 0;
-                // }
             }
         }
         if (!is_text){
@@ -333,15 +325,10 @@ unsigned short nav_keybind(char key) {
         }
 
         path_build(child_obj, cwd, d->d_name);
-        write_str( child_obj, my_strlen(child_obj) );
+        // write_str( child_obj, my_strlen(child_obj) );
 
         current_item_type = d->d_type;
         draw_child_box();
-        // if (current_item_type == DT_DIR){
-        //     draw_dir_listing((long)child_obj,
-        //             nav_screen.box_offset_x[2], nav_screen.box_offset_x[2] + nav_screen.box_width[2],
-        //             nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
-        // }
 
         return ACTION_KEYBIND;
     }

@@ -60,7 +60,7 @@ void _start(void) {
     // nav_screen.height = ws.ws_row;
 
     // 5. Main loop
-    // hide_cursor();
+    hide_cursor();
     clear_screen();
     set_current_dir();
     // move_cursor(5, 10);
