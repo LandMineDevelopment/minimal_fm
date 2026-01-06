@@ -65,7 +65,6 @@ void set_dir_items(void){
                 continue;
         }
 
-
         num_dir_items++;
         pos += d->d_reclen;
     }
@@ -251,12 +250,12 @@ void draw_child_box() {
             line_buf[i] = ' ';
         }
         int line_count = 0;
-        // int pos = 0;
         unsigned short pos = 0;
         char is_text = 1;
         int curr_buff_ind = 0;
 
         move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
+
         while (line_count < nav_screen.box_height[2] ) {
             long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf) - 1);
             if (ret <= 0) break;
@@ -356,6 +355,7 @@ unsigned short nav_update(unsigned short width, unsigned short height){
 unsigned short nav_keybind(char key) {
     if (key == 'q') return ACTION_EXIT;
     else if (key == 'r') {
+        set_child_item_path();
         nav_update(nav_screen.width, nav_screen.height);
         return ACTION_REFRESH;
     }
@@ -396,19 +396,22 @@ unsigned short nav_keybind(char key) {
     else if (key == 'j') {
         my_strcpy(cwd, parent_dir);
         go_to_parent_dir(parent_dir);
-        set_dir_items();
         nav_cursor.cursor_y = 1;
+        set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
     }
     else if (key == 'l' && current_item_type == DT_DIR) {
         my_strcpy(parent_dir, cwd);
         my_strcpy(cwd, child_obj);
-        set_dir_items();
         nav_cursor.cursor_y = 1;
+        current_item = 0;
+        set_child_item_path();
+        set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
     }
     else if (key == '.') {
         show_hidden = !show_hidden;
+        set_child_item_path();
         nav_update(nav_screen.width, nav_screen.height);
     }
     return ACTION_NOTHING;
