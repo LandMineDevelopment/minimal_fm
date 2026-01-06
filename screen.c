@@ -205,7 +205,7 @@ void draw_child_box() {
         }
 
         char line_buf[nav_screen.box_width[2] * nav_screen.box_height[2]];
-        for (int i = 0; i < nav_screen.box_width[2]; i++) {
+        for (int i = 0; i < nav_screen.box_width[2] * nav_screen.box_height[2]; i++) {
             line_buf[i] = ' ';
         }
         int line_count = 0;
@@ -221,7 +221,14 @@ void draw_child_box() {
             while (line_buf[curr_buff_ind] && line_count < nav_screen.box_height[2] ) {
                 // msleep(10);
                 char c = line_buf[curr_buff_ind];
-                if (c == '\n' || pos > nav_screen.box_width[2]) {
+                if (pos > nav_screen.box_width[2]) {
+                    while (line_buf[curr_buff_ind] && c != '\n') {
+                        curr_buff_ind++;
+                        c = line_buf[curr_buff_ind];
+                    }
+                }
+                // if (c == '\n' || pos > nav_screen.box_width[2]) {
+                if (c == '\n') {
                     pos = 0;
                     line_count++;
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
@@ -229,6 +236,9 @@ void draw_child_box() {
                     ((unsigned char)c < 0x20 && c != '\t' && c != '\n' && c != '\r')) { 
                     is_text = 0;
                     goto binary;
+                } else if (c == '\t') {
+                    write_str("    ", 4);
+                    pos += 4;
                 } else {
                     write_str(&c, 1);
                     pos++;
