@@ -50,38 +50,35 @@ int list_dir_entries(long dir_type, char *buf, int buf_size)
     return nread;
 }
 
-unsigned short draw_dir_listing(long dir_type, unsigned short x_start, unsigned short x_stop,
-                      unsigned short y_start, unsigned short y_stop)
-{
-    char buf[MAX_DIRENT_BUF];
-    int nread = list_dir_entries((long)dir_type, buf, sizeof(buf));
-    if (nread <= 0) {
-        move_cursor(x_start, y_start);
-        write_str("[NO FILES]", 10);
+
+unsigned short go_to_parent_dir(char *path) {
+    if (path == 0) return 0;
+
+    long len = my_strlen(path);
+
+    if (len == 0 || (len == 1 && path[0] == '/')) {
         return 0;
     }
-
-    save_cursor();
-    unsigned short curr_row = y_start;
-    unsigned short curr_col = x_start;
-    int pos = 0;
-    while (pos < nread && curr_row <= y_stop) {
-        move_cursor(x_start, curr_row);
-
-        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
-
-        unsigned short len_write = 0;
-        if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
-        else len_write = my_strlen(d->d_name);
-        write_str(d->d_name, len_write);
-
-        if (d->d_type == DT_DIR) write_str("/", 1);
-
-        pos += d->d_reclen;
-        curr_row += 1;
+    // Remove trailing slash if present (except for root)
+    if (len > 1 && path[len - 1] == '/') {
+        path[--len] = '\0';
     }
-
-    restore_cursor();
-    return curr_row;
+    // Find the last '/' — that's the end of the current dir name
+    long i = len - 1;
+    while (i > 0 && path[i] != '/') {
+        i--;
+    }
+    // If we found a '/', truncate there
+    if (i > 0) {
+        path[i] = '\0';  // truncate to parent
+        return 1;
+    }
+    // If we're at something like "dir" with no '/', go to root
+    if (i == 0 && path[0] != '/') {
+        path[0] = '/';
+        path[1] = '\0';
+        return 1;
+    }
+    // Already at root
+    return 0;
 }
-

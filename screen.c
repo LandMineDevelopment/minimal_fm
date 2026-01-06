@@ -17,8 +17,22 @@ int current_item = 0;
 int current_item_type = 0;
 int num_dir_items = 0;
 int size_of_dir_items;
+int show_hidden = 0;
 
 Cursor nav_cursor = {0};
+
+void set_child_item_path(void){
+    struct linux_dirent64 *d = 0;
+    int i = 0;
+    for (int count = 0; count <= current_item; count++){
+        d = (struct linux_dirent64 *)(current_dir_items + i);
+        i += d->d_reclen;
+    }
+
+    path_build(child_obj, cwd, d->d_name);
+
+    current_item_type = d->d_type;
+}
 
 void set_dir_items(void){
     num_dir_items = 0;
@@ -31,15 +45,7 @@ void set_dir_items(void){
         pos += d->d_reclen;
     }
 
-    if (num_dir_items > 0) {
-        struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items );
-        unsigned short obj_len = my_strlen(d->d_name);
-        unsigned short i;
-        path_build(child_obj, cwd, d->d_name);
-
-        // child_obj[cwd_path_len + i] = '\0';
-        current_item_type = d->d_type;
-    }
+    if (num_dir_items > 0) set_child_item_path();
 }
 
 void set_current_dir(void){
@@ -89,41 +95,6 @@ Screen nav_screen = {
     // keybind_func box_keybind[MAX_BOXES_PER_SCREEN];
     // update_func box_update[MAX_BOXES_PER_SCREEN];
 };
-
-
-
-
-unsigned short go_to_parent_dir(char *path) {
-    if (path == 0) return 0;
-
-    long len = my_strlen(path);
-
-    if (len == 0 || (len == 1 && path[0] == '/')) {
-        return 0;
-    }
-    // Remove trailing slash if present (except for root)
-    if (len > 1 && path[len - 1] == '/') {
-        path[--len] = '\0';
-    }
-    // Find the last '/' — that's the end of the current dir name
-    long i = len - 1;
-    while (i > 0 && path[i] != '/') {
-        i--;
-    }
-    // If we found a '/', truncate there
-    if (i > 0) {
-        path[i] = '\0';  // truncate to parent
-        return 1;
-    }
-    // If we're at something like "dir" with no '/', go to root
-    if (i == 0 && path[0] != '/') {
-        path[0] = '/';
-        path[1] = '\0';
-        return 1;
-    }
-    // Already at root
-    return 0;
-}
 
 struct timespec {
     long tv_sec;   // seconds
@@ -176,6 +147,41 @@ void draw(int x_start, int x_stop, int y_start, int y_stop, void (*func)(int, in
     func(x_start, x_stop, y_start, y_stop);
 }
 
+unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned short x_stop,
+                      unsigned short y_start, unsigned short y_stop)
+{
+    char buf[MAX_DIRENT_BUF];
+    int nread = list_dir_entries((long)path, buf, sizeof(buf));
+    if (nread <= 0) {
+        move_cursor(x_start, y_start);
+        write_str("[NO FILES]", 10);
+        return 0;
+    }
+
+    save_cursor();
+    unsigned short curr_row = y_start;
+    unsigned short curr_col = x_start;
+    int pos = 0;
+    while (pos < nread && curr_row <= y_stop) {
+        move_cursor(x_start, curr_row);
+
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+
+        unsigned short len_write = 0;
+        if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
+        else len_write = my_strlen(d->d_name);
+        write_str(d->d_name, len_write);
+
+        if (d->d_type == DT_DIR) write_str("/", 1);
+
+        pos += d->d_reclen;
+        curr_row += 1;
+    }
+
+    restore_cursor();
+    return curr_row;
+}
+
 void draw_parent_box() {
     draw_dir_listing((long)parent_dir,
               nav_screen.box_offset_x[0], nav_screen.box_offset_x[0] + nav_screen.box_width[0],
@@ -220,7 +226,6 @@ void draw_child_box() {
             long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf) - 1);
             if (ret <= 0) break;
             while (line_buf[curr_buff_ind] && line_count < nav_screen.box_height[2] ) {
-                // msleep(10);
                 char c = line_buf[curr_buff_ind];
                 if (pos > nav_screen.box_width[2]) {
                     while (line_buf[curr_buff_ind] && c != '\n') {
@@ -228,15 +233,12 @@ void draw_child_box() {
                         c = line_buf[curr_buff_ind];
                     }
                 }
-                // if (c == '\n' || pos > nav_screen.box_width[2]) {
                 if (c == '\n') {
                     pos = 0;
                     line_count++;
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
-                // } else if (c == '\0' ||
                 } else if (
-                    // ((unsigned char)c < 0x20 && c != '\t' && c != '\n' && c != '\r')) { 
-                    ((unsigned char)c > 127 && c != '\t' && c != '\n' && c != '\r')) { 
+                    ((unsigned char)c > 127 && c != '\t' && c != '\n' && c != '\r')) {
                     is_text = 0;
                     goto binary;
                 } else if (c == '\t') {
@@ -334,17 +336,7 @@ unsigned short nav_keybind(char key) {
         current_item++;
         if (current_item > num_dir_items - 1) current_item = 0;
 
-        struct linux_dirent64 *d = 0;
-        int i = 0;
-        for (int count = 0; count <= current_item; count++){
-            d = (struct linux_dirent64 *)(current_dir_items + i);
-            i += d->d_reclen;
-        }
-
-        path_build(child_obj, cwd, d->d_name);
-        // write_str( child_obj, my_strlen(child_obj) );
-
-        current_item_type = d->d_type;
+        set_child_item_path();
         draw_child_box();
 
         return ACTION_KEYBIND;
@@ -361,17 +353,9 @@ unsigned short nav_keybind(char key) {
         current_item--;
         if (current_item < 0) current_item = num_dir_items -1;
 
-        struct linux_dirent64 *d = 0;
-        int i = 0;
-        for (int count = 0; count <= current_item; count++){
-            d = (struct linux_dirent64 *)(current_dir_items + i);
-            i += d->d_reclen;
-        }
-
-        path_build(child_obj, cwd, d->d_name);
-
-        current_item_type = d->d_type;
+        set_child_item_path();
         draw_child_box();
+
         return ACTION_KEYBIND;
     }
     else if (key == 'j') {
@@ -387,6 +371,9 @@ unsigned short nav_keybind(char key) {
         set_dir_items();
         nav_cursor.cursor_y = 1;
         nav_update(nav_screen.width, nav_screen.height);
+    }
+    else if (key == '.') {
+        show_hidden = !show_hidden;
     }
     return ACTION_NOTHING;
 }
