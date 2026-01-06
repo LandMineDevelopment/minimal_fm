@@ -18,6 +18,8 @@ int current_item_type = 0;
 int num_dir_items = 0;
 int size_of_dir_items;
 
+Cursor nav_cursor = {0};
+
 void set_dir_items(void){
     num_dir_items = 0;
     current_item = 0;
@@ -87,7 +89,6 @@ Screen nav_screen = {
     // keybind_func box_keybind[MAX_BOXES_PER_SCREEN];
     // update_func box_update[MAX_BOXES_PER_SCREEN];
 };
-Cursor nav_cursor = {0};
 
 
 
@@ -232,8 +233,10 @@ void draw_child_box() {
                     pos = 0;
                     line_count++;
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
-                } else if (c == '\0' ||
-                    ((unsigned char)c < 0x20 && c != '\t' && c != '\n' && c != '\r')) { 
+                // } else if (c == '\0' ||
+                } else if (
+                    // ((unsigned char)c < 0x20 && c != '\t' && c != '\n' && c != '\r')) { 
+                    ((unsigned char)c > 127 && c != '\t' && c != '\n' && c != '\r')) { 
                     is_text = 0;
                     goto binary;
                 } else if (c == '\t') {
@@ -248,9 +251,8 @@ void draw_child_box() {
         }
         if (!is_text){
             binary:
-            const char *msg = "Binary file";
             move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
-            write_str("Binary file", 11);
+            write_str("[Binary file]", 13);
         }
 
         syscall1(SYS_CLOSE, fd);
