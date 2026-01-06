@@ -23,10 +23,23 @@ Cursor nav_cursor = {0};
 
 void set_child_item_path(void){
     struct linux_dirent64 *d = 0;
-    int i = 0;
+    int pos = 0;
     for (int count = 0; count <= current_item; count++){
-        d = (struct linux_dirent64 *)(current_dir_items + i);
-        i += d->d_reclen;
+        d = (struct linux_dirent64 *)(current_dir_items + pos);
+
+        if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
+        (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
+                pos += d->d_reclen;
+                count--;
+                continue;
+        }
+        if (!show_hidden && d->d_name[0] == '.') {
+                pos += d->d_reclen;
+                count--;
+                continue;
+        }
+
+        pos += d->d_reclen;
     }
 
     path_build(child_obj, cwd, d->d_name);
@@ -41,6 +54,18 @@ void set_dir_items(void){
     int pos = 0;
     while (pos < size_of_dir_items) {
         struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
+
+        if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
+        (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
+                pos += d->d_reclen;
+                continue;
+        }
+        if (!show_hidden && d->d_name[0] == '.') {
+                pos += d->d_reclen;
+                continue;
+        }
+
+
         num_dir_items++;
         pos += d->d_reclen;
     }
@@ -166,6 +191,16 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
         move_cursor(x_start, curr_row);
 
         struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+        if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
+           (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
+            pos += d->d_reclen;
+            continue;
+        }
+        if (!show_hidden && d->d_name[0] == '.') {
+            pos += d->d_reclen;
+            continue;
+        }
+
 
         unsigned short len_write = 0;
         if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
@@ -374,6 +409,7 @@ unsigned short nav_keybind(char key) {
     }
     else if (key == '.') {
         show_hidden = !show_hidden;
+        nav_update(nav_screen.width, nav_screen.height);
     }
     return ACTION_NOTHING;
 }
