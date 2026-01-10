@@ -20,6 +20,7 @@ int size_of_dir_items;
 int show_hidden = 0;
 
 Cursor nav_cursor = {0};
+Cursor nav_parent_cursor = {0};
 
 void set_child_item_path(void){
     struct linux_dirent64 *d = 0;
@@ -299,7 +300,7 @@ void draw_child_box() {
 void nav_draw() {
     //draw parent box
     draw_dir_listing((long)parent_dir,
-              nav_screen.box_offset_x[0], nav_screen.box_offset_x[0] + nav_screen.box_width[0],
+              nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
     //draw current box
     nav_cursor.cursor_max_y = draw_dir_listing((long)cwd,
@@ -342,6 +343,11 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_screen.box_height[1] = height;
     nav_screen.box_height[2] = height;
 
+
+    nav_parent_cursor.cursor_min_y = nav_screen.box_offset_y[1];
+    nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
+    if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
+
     nav_cursor.cursor_min_y = nav_screen.box_offset_y[1];
     nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
     if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
@@ -363,8 +369,8 @@ unsigned short nav_keybind(char key) {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
         write_str(" ",1);
 
-        nav_cursor.cursor_y = nav_cursor.cursor_y + 1;
-        if (nav_cursor.cursor_y >= nav_cursor.cursor_max_y) nav_cursor.cursor_y = 1;
+        nav_cursor.cursor_y++;
+        if (nav_cursor.cursor_y >= nav_cursor.cursor_max_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y );
         write_str(">",1);
 
@@ -377,10 +383,10 @@ unsigned short nav_keybind(char key) {
         return ACTION_KEYBIND;
     }
     else if (key == 'i') {
-        move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y );
+        move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
         write_str(" ",1);
 
-        nav_cursor.cursor_y = nav_cursor.cursor_y - 1;
+        nav_cursor.cursor_y--;
         if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_max_y - 1;
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
         write_str(">",1);
