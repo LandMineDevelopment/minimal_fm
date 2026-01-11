@@ -320,27 +320,27 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_screen.width = width;
     nav_screen.height = height;
 
-    nav_screen.box_offset_x[0] = 1;
-    // nav_screen.box_offset_x[1] = width/3;
-    // nav_screen.box_offset_x[2] = width*2/3;
-    nav_screen.box_offset_x[1] = width/4;
-    nav_screen.box_offset_x[2] = width*1/2;
+    int total_col_parts = 0;
+    for (int i = 0; i < nav_screen.grid_cols; i++){
+        total_col_parts += nav_screen.grid_cols_dims[i];
+    }
+    for (int i = 0; i < nav_screen.num_boxes; i++){
+        int col_dim_ind = i % nav_screen.grid_cols;
+        nav_screen.box_width[i] = nav_screen.grid_cols_dims[col_dim_ind] * width / total_col_parts;
+        if (i % nav_screen.grid_cols == 0) nav_screen.box_offset_x[i] = 1;
+        else nav_screen.box_offset_x[i] = nav_screen.box_width[i-1] + nav_screen.box_offset_x[i-1];
+    }
 
-    nav_screen.box_offset_y[0] = 1;
-    nav_screen.box_offset_y[1] = 1;
-    nav_screen.box_offset_y[2] = 1;
-
-    // nav_screen.box_width[0] = width/3;
-    // nav_screen.box_width[1] = width/3;
-    // nav_screen.box_width[2] = width/3;
-    nav_screen.box_width[0] = width/4;
-    nav_screen.box_width[1] = width/4;
-    nav_screen.box_width[2] = width/2;
-
-    nav_screen.box_height[0] = height;
-    nav_screen.box_height[1] = height;
-    nav_screen.box_height[2] = height;
-
+    int total_row_parts = 0;
+    for (int i = 0; i < nav_screen.grid_rows; i++){
+        total_row_parts += nav_screen.grid_row_dims[i];
+    }
+    for (int i = 0; i < nav_screen.num_boxes; i++){
+        int row_dim_ind = i % nav_screen.grid_rows;
+        nav_screen.box_height[i] = nav_screen.grid_row_dims[row_dim_ind] * height / total_row_parts;
+        if ( (i/nav_screen.grid_cols) % nav_screen.grid_rows == 0) nav_screen.box_offset_y[i] = 1;
+        else nav_screen.box_offset_y[i] = nav_screen.box_height[i-nav_screen.grid_cols] + nav_screen.box_offset_y[i-nav_screen.grid_cols];
+    }
 
     nav_parent_cursor.cursor_min_y = nav_screen.box_offset_y[1];
     nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
