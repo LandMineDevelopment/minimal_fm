@@ -13,7 +13,6 @@ unsigned short parent_path_len;
 char child_obj[MAX_PATH];
 unsigned short child_path_len;
 char current_dir_items[MAX_DIRENT_BUF];
-int current_item = 0;
 int current_item_type = 0;
 int num_dir_items = 0;
 int size_of_dir_items;
@@ -25,32 +24,35 @@ Cursor nav_parent_cursor = {0};
 void set_child_item_path(void){
     struct linux_dirent64 *d = 0;
     int pos = 0;
-    for (int count = 0; count <= current_item; count++){
+    int visible_index = 0;
+    while (pos < size_of_dir_items) {
         d = (struct linux_dirent64 *)(current_dir_items + pos);
 
         if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
         (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
-                pos += d->d_reclen;
-                count--;
-                continue;
+            pos += d->d_reclen;
+            continue;
         }
         if (!show_hidden && d->d_name[0] == '.') {
-                pos += d->d_reclen;
-                count--;
-                continue;
+            pos += d->d_reclen;
+            continue;
         }
 
+        if (visible_index == (nav_cursor.cursor_y - nav_cursor.cursor_min_y)) {
+            break;
+        }
+        visible_index++;
         pos += d->d_reclen;
     }
 
-    path_build(child_obj, cwd, d->d_name);
-
-    current_item_type = d->d_type;
+    if (visible_index == (nav_cursor.cursor_y - nav_cursor.cursor_min_y)) {
+        path_build(child_obj, cwd, d->d_name);
+        current_item_type = d->d_type;
+    }
 }
 
 void set_dir_items(void){
     num_dir_items = 0;
-    current_item = 0;
     size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
     int pos = 0;
     while (pos < size_of_dir_items) {
@@ -218,9 +220,11 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
 }
 
 void draw_parent_box() {
-    draw_dir_listing((long)parent_dir,
-              nav_screen.box_offset_x[0], nav_screen.box_offset_x[0] + nav_screen.box_width[0],
+    nav_parent_cursor.cursor_max_y = draw_dir_listing((long)parent_dir,
+              nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
+    move_cursor(nav_screen.box_offset_x[0], nav_parent_cursor.cursor_y);
+    write_str(">",1);
 }
 
 void draw_current_box() {
@@ -294,6 +298,8 @@ void nav_draw() {
     draw_dir_listing((long)parent_dir,
               nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
+    move_cursor(nav_screen.box_offset_x[0], nav_parent_cursor.cursor_y);
+    write_str(">",1);
     //draw current box
     nav_cursor.cursor_max_y = draw_dir_listing((long)cwd,
               nav_screen.box_offset_x[1] + 1, nav_screen.box_offset_x[1] + nav_screen.box_width[1],
@@ -314,7 +320,7 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     nav_screen.width = width;
     nav_screen.height = height;
 
-    nav_screen.box_offset_x[0] = 0;
+    nav_screen.box_offset_x[0] = 1;
     // nav_screen.box_offset_x[1] = width/3;
     // nav_screen.box_offset_x[2] = width*2/3;
     nav_screen.box_offset_x[1] = width/4;
@@ -366,9 +372,6 @@ unsigned short nav_keybind(char key) {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y );
         write_str(">",1);
 
-        current_item++;
-        if (current_item > num_dir_items - 1) current_item = 0;
-
         set_child_item_path();
         draw_child_box();
 
@@ -383,9 +386,6 @@ unsigned short nav_keybind(char key) {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
         write_str(">",1);
 
-        current_item--;
-        if (current_item < 0) current_item = num_dir_items -1;
-
         set_child_item_path();
         draw_child_box();
 
@@ -394,15 +394,18 @@ unsigned short nav_keybind(char key) {
     else if (key == 'j') {
         my_strcpy(cwd, parent_dir);
         go_to_parent_dir(parent_dir);
-        nav_cursor.cursor_y = 1;
+        // nav_cursor.cursor_y = 1;
+        nav_cursor.cursor_y = nav_parent_cursor.cursor_y;
+        nav_parent_cursor.cursor_y = 1;
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
     }
     else if (key == 'l' && current_item_type == DT_DIR) {
         my_strcpy(parent_dir, cwd);
         my_strcpy(cwd, child_obj);
+        nav_parent_cursor.cursor_y = nav_cursor.cursor_y;
         nav_cursor.cursor_y = 1;
-        current_item = 0;
+        nav_cursor.cursor_y = 1;
         set_child_item_path();
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
