@@ -431,7 +431,6 @@ unsigned short nav_keybind(char key) {
         my_strcpy(cwd, parent_dir);
         go_to_parent_dir(parent_dir);
         nav_cursor.cursor_y = nav_parent_cursor.cursor_y;
-        // nav_parent_cursor.cursor_y = 1;
         set_parent_cursor();
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
