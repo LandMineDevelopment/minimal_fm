@@ -37,6 +37,16 @@ int my_strlen(const char *s);
 //   Null terminate
 void path_build(char *dest, const char *base, const char *name);
 
+// String concatenate
+// Params: result - Destination buffer
+//         s1 - First string
+//         s2 - Second string
+// Returns: void
+// Pseudo-code logic:
+//   Copy s1 to result
+//   Append s2 to result
+void str_concat(char *result, const char *s1, const char *s2);
+
 // Fuzzy match for search
 // Params: pattern - Search pattern
 //         str - String to match

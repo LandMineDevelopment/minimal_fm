@@ -75,12 +75,48 @@ void set_dir_items(void){
     if (num_dir_items > 0) set_child_item_path();
 }
 
+
+void set_parent_cursor(void){
+    char buf[MAX_DIRENT_BUF];
+    int nread = list_dir_entries((long)parent_dir, buf, sizeof(buf));
+    if (nread <= 0) {
+        write_str("[NO FILES]", 10);
+        return;
+    }
+
+    int pos = 0;
+    int element_line = 1;
+    char check[MAX_PATH];
+    while (pos < nread) {
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+        if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
+           (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
+            pos += d->d_reclen;
+            continue;
+        }
+        if (!show_hidden && d->d_name[0] == '.') {
+            pos += d->d_reclen;
+            continue;
+        }
+
+        path_build(check, parent_dir, d->d_name);
+        if (my_strcmp(check, cwd) == 0) {
+            nav_parent_cursor.cursor_y = element_line;
+            return;
+        }
+
+        pos += d->d_reclen;
+        element_line++;
+    }
+}
+
 void set_current_dir(void){
     cwd_path_len = syscall2(SYS_GETCWD, (long)&cwd, sizeof(cwd));
     syscall2(SYS_GETCWD, (long)&parent_dir, sizeof(parent_dir));
     syscall2(SYS_GETCWD, (long)&child_obj, sizeof(child_obj));
     go_to_parent_dir(parent_dir);
     parent_path_len = my_strlen(parent_dir);
+    set_parent_cursor();
     set_dir_items();
 }
 
@@ -394,9 +430,9 @@ unsigned short nav_keybind(char key) {
     else if (key == 'j') {
         my_strcpy(cwd, parent_dir);
         go_to_parent_dir(parent_dir);
-        // nav_cursor.cursor_y = 1;
         nav_cursor.cursor_y = nav_parent_cursor.cursor_y;
-        nav_parent_cursor.cursor_y = 1;
+        // nav_parent_cursor.cursor_y = 1;
+        set_parent_cursor();
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
     }

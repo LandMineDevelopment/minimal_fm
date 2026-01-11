@@ -46,6 +46,20 @@ void path_build(char *dest, const char *base, const char *name) {
     *dest = '\0';
 }
 
+// String concatenate
+// result must have room for s1 + s2 + null
+void str_concat(char *result, const char *s1, const char *s2) {
+    // Copy s1
+    while (*s1) {
+        *result++ = *s1++;
+    }
+    // Copy s2
+    while (*s2) {
+        *result++ = *s2++;
+    }
+    *result = '\0';
+}
+
 // Fuzzy match (case-insensitive sequential, like Yazi)
 // Returns 1 if pattern matches str in order (skips allowed in str)
 int fuzzy_match(const char *pattern, const char *str) {
