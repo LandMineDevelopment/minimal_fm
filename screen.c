@@ -247,35 +247,32 @@ void draw_child_box() {
         }
 
         char line_buf[nav_screen.box_width[2] * nav_screen.box_height[2]];
-        for (int i = 0; i < nav_screen.box_width[2] * nav_screen.box_height[2]; i++) {
-            line_buf[i] = ' ';
-        }
         int line_count = 0;
         unsigned short pos = 0;
-        char is_text = 1;
-        int curr_buff_ind = 0;
 
         move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
 
         while (line_count < nav_screen.box_height[2] ) {
-            long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf) - 1);
+            long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf));
             if (ret <= 0) break;
-            while (line_buf[curr_buff_ind] && line_count < nav_screen.box_height[2] ) {
-                char c = line_buf[curr_buff_ind];
+            for (int i = 0; i < ret && line_count < nav_screen.box_height[2]; i++) {
+                char c = line_buf[i];
+                if (c == '\0') {
+                    move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
+                    write_str("[Binary file]", 13);
+                    goto end_display;
+                }
                 if (pos > nav_screen.box_width[2]) {
-                    while (line_buf[curr_buff_ind] && c != '\n') {
-                        curr_buff_ind++;
-                        c = line_buf[curr_buff_ind];
+                    while (i < ret && c != '\n') {
+                        i++;
+                        if (i < ret) c = line_buf[i];
                     }
+                    if (i >= ret) break;
                 }
                 if (c == '\n') {
                     pos = 0;
                     line_count++;
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
-                } else if (
-                    ((unsigned char)c > 127 && c != '\t' && c != '\n' && c != '\r')) {
-                    is_text = 0;
-                    goto binary;
                 } else if (c == '\t') {
                     write_str("    ", 4);
                     pos += 4;
@@ -283,14 +280,9 @@ void draw_child_box() {
                     write_str(&c, 1);
                     pos++;
                 }
-                curr_buff_ind++;
             }
         }
-        if (!is_text){
-            binary:
-            move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
-            write_str("[Binary file]", 13);
-        }
+        end_display:
 
         syscall1(SYS_CLOSE, fd);
     }
