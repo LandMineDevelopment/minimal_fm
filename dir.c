@@ -82,3 +82,44 @@ unsigned short go_to_parent_dir(char *path) {
     // Already at root
     return 0;
 }
+
+// Delete a file or directory recursively
+void delete_recursive(const char *path) {
+    char buf[MAX_DIRENT_BUF];
+    int nread = list_dir_entries((long)path, buf, sizeof(buf));
+    if (nread >= 0) {
+        // It's a directory, delete contents first
+        int pos = 0;
+        while (pos < nread) {
+            struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+            if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
+                (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
+                pos += d->d_reclen;
+                continue;
+            }
+            // Build full path
+            char full_path[MAX_PATH];
+            path_build(full_path, path, d->d_name);
+            // Recurse
+            delete_recursive(full_path);
+            pos += d->d_reclen;
+        }
+        // Now remove the directory
+        syscall1(SYS_RMDIR, (long)path);
+    } else {
+        // It's a file, unlink
+        syscall1(SYS_UNLINK, (long)path);
+    }
+}
+
+// Create a file if it does not exist
+// Returns 1 if created, 0 if already exists or error
+int create_file(const char *path) {
+    long ret = syscall3(SYS_OPEN, (long)path, O_CREAT | O_EXCL | O_WRONLY, 0644);
+    if (ret >= 0) {
+        syscall1(SYS_CLOSE, ret);
+        return 1; // created
+    } else {
+        return 0; // exists or error
+    }
+}

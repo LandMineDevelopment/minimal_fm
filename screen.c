@@ -256,6 +256,7 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
 }
 
 void draw_parent_box() {
+    clear_section( nav_screen.box_offset_x[0], nav_screen.box_offset_x[0] + nav_screen.box_width[0], nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
     nav_parent_cursor.cursor_max_y = draw_dir_listing((long)parent_dir,
               nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
@@ -264,6 +265,7 @@ void draw_parent_box() {
 }
 
 void draw_current_box() {
+    clear_section( nav_screen.box_offset_x[1], nav_screen.box_offset_x[1] + nav_screen.box_width[1], nav_screen.box_offset_y[1], nav_screen.box_offset_y[1] + nav_screen.box_height[1]);
     nav_cursor.cursor_max_y = draw_dir_listing((long)cwd,
               nav_screen.box_offset_x[1] + 1, nav_screen.box_offset_x[1] + nav_screen.box_width[1],
               nav_screen.box_offset_y[1], nav_screen.box_offset_y[1] + nav_screen.box_height[1]);
@@ -394,10 +396,30 @@ unsigned short nav_update(unsigned short width, unsigned short height){
 
 unsigned short nav_keybind(char key) {
     if (key == 'q') return ACTION_EXIT;
-    else if (key == 'r') {
+    else if (key == 'd') {
+        return ACTION_KEYBIND; //here to temp block acidental deletes until prompt is added
+        int old_index = (nav_cursor.cursor_y - nav_cursor.cursor_min_y);
+        delete_recursive(child_obj);
         set_child_item_path();
-        nav_update(nav_screen.width, nav_screen.height);
-        return ACTION_REFRESH;
+        set_dir_items();
+        // Adjust cursor to stay at similar position
+        int new_index = old_index;
+        if (new_index >= num_dir_items) new_index = num_dir_items - 1;
+        if (new_index < 0) new_index = 0;
+        nav_cursor.cursor_y = nav_cursor.cursor_min_y + new_index;
+        // nav_update(nav_screen.width, nav_screen.height);
+        draw_current_box();
+        draw_child_box();
+        return ACTION_KEYBIND;
+    }
+    else if (key == 'a'){
+        char buf[MAX_PATH];
+        path_build(buf, cwd, "hello.txt");
+        create_file(buf);
+        set_dir_items();
+        draw_current_box();
+        draw_child_box();
+        return ACTION_KEYBIND;
     }
     else if (key == 'k') {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
@@ -434,6 +456,8 @@ unsigned short nav_keybind(char key) {
         set_parent_cursor();
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
+
+        return ACTION_KEYBIND;
     }
     else if (key == 'l' && current_item_type == DT_DIR) {
         my_strcpy(parent_dir, cwd);
@@ -444,11 +468,20 @@ unsigned short nav_keybind(char key) {
         set_child_item_path();
         set_dir_items();
         nav_update(nav_screen.width, nav_screen.height);
+
+        return ACTION_KEYBIND;
     }
     else if (key == '.') {
         show_hidden = !show_hidden;
         set_child_item_path();
         nav_update(nav_screen.width, nav_screen.height);
+
+        return ACTION_KEYBIND;
+    }
+    else if (key == 'r'){
+        return ACTION_REFRESH;
     }
     return ACTION_NOTHING;
 }
+
+

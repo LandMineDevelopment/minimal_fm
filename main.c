@@ -75,11 +75,13 @@ void _start(void) {
         if (bytes_read <= 0) break;
 
         syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
-        nav_update(ws.ws_col, ws.ws_row);
         act = nav_keybind(c);
 
         if (act == ACTION_EXIT) break;
 
+        if (act == ACTION_REFRESH) {
+            nav_update(ws.ws_col, ws.ws_row);
+        }
         if (c == 'd' && act == ACTION_NOTHING) {
             fill_x(0,ws.ws_col,0,ws.ws_row + 1);
         }
