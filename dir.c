@@ -1,6 +1,10 @@
-#include "defs.h"      // for SYS_GETCWD, MAX_PATH
-#include "syscall.h"
-#include "ansi.h"      // for move_cursor, write_str
+#include <unistd.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <string.h>
+#include <sys/syscall.h>
+#include "defs.h"
+#include "ansi.h"      // for move_cursor
 #include "string.h"
 
 
@@ -9,15 +13,14 @@ void draw_cwd(unsigned short x_start, unsigned short x_stop,
 {
     unsigned short max_path = x_stop - x_start;
     char cwd[max_path];
-    long ret = syscall2(SYS_GETCWD, (long)&cwd, max_path);
+    char *ret = getcwd(cwd, max_path);
 
-    if (ret < 0) {
+    if (ret == NULL) {
         const char *err = "[CWD ERROR]";
-        ret = 10;
-        for (int i = 0; i < ret; i++) cwd[i] = err[i];
-        cwd[ret] = '\0';
-    } else {
-        cwd[ret] = '\0';
+        int len = 10;
+        for (int i = 0; i < len; i++) cwd[i] = err[i];
+        cwd[len] = '\0';
+        write(2, "Failed to get current working directory\n", 40);
     }
 
     unsigned short width = x_stop - x_start + 1;
@@ -30,7 +33,7 @@ void draw_cwd(unsigned short x_start, unsigned short x_stop,
         move_cursor(x_start,row);
 
         while (i < width && cwd[i] != '\0') {
-            write_str(&cwd[i], 1);
+            write(1, &cwd[i], 1);
             i++;
        }
     }
@@ -38,23 +41,27 @@ void draw_cwd(unsigned short x_start, unsigned short x_stop,
     restore_cursor();
 }
 
-int list_dir_entries(long dir_type, char *buf, int buf_size)
+int list_dir_entries(const char *dir_path, char *buf, int buf_size)
 {
-    long fd = syscall2(SYS_OPEN, (long)dir_type, O_DIRECTORY | O_RDONLY);
-    if (fd < 0) return -1;
+    int fd = open(dir_path, O_RDONLY);
+    if (fd == -1) return -1;
 
-    long nread = syscall3(SYS_GETDENTS64, fd, (long)buf, buf_size);
-    syscall1(SYS_CLOSE, fd);
+    int total_size = 0;
+    while (total_size < buf_size) {
+        int nread = syscall(SYS_GETDENTS64, fd, buf + total_size, buf_size - total_size);
+        if (nread <= 0) break;
+        total_size += nread;
+    }
 
-    if (nread < 0) return -1;
-    return nread;
+    close(fd);
+    return total_size;
 }
 
 
 unsigned short go_to_parent_dir(char *path) {
     if (path == 0) return 0;
 
-    long len = my_strlen(path);
+    long len = strlen(path);
 
     if (len == 0 || (len == 1 && path[0] == '/')) {
         return 0;

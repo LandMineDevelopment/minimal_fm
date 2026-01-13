@@ -1,8 +1,7 @@
 #ifndef ANSI_H
 #define ANSI_H
 
-// #include "defs.h"
-// #include "syscall.h"
+
 
 // Clear
 void clear_screen(void);

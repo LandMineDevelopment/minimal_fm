@@ -27,13 +27,14 @@ int my_strlen(const char *s) {
 
 // Build full path: base + "/" + name (skip double /)
 void path_build(char *dest, const char *base, const char *name) {
+    char *start = dest;
     // Copy base
     while (*base) {
         *dest++ = *base++;
     }
 
     // Append '/' if base doesn't end with one and name isn't empty
-    if (dest > dest - my_strlen(dest) && // dest not at start
+    if (dest != start &&
         *(dest - 1) != '/' &&
         *name) {
         *dest++ = '/';

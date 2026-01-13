@@ -1,6 +1,10 @@
+#include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
+#include <string.h>
+#include <dirent.h>
 #include "defs.h"
 #include "ansi.h"
-#include "syscall.h"
 #include "string.h"
 #include "screen.h"
 #include "dir.h"
@@ -53,7 +57,13 @@ void set_child_item_path(void){
 
 void set_dir_items(void){
     num_dir_items = 0;
-    size_of_dir_items = (unsigned short)list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
+    int size = list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
+    if (size == -1) {
+        write(2, "Failed to list directory entries\n", 33);
+        size_of_dir_items = 0;
+        return;
+    }
+    size_of_dir_items = (unsigned short)size;
     int pos = 0;
     while (pos < size_of_dir_items) {
         struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
@@ -79,8 +89,12 @@ void set_dir_items(void){
 void set_parent_cursor(void){
     char buf[MAX_DIRENT_BUF];
     int nread = list_dir_entries((long)parent_dir, buf, sizeof(buf));
-    if (nread <= 0) {
-        write_str("[NO FILES]", 10);
+    if (nread == -1) {
+        write(2, "Failed to read parent directory\n", 31);
+        write(1, "[ERROR]", 7);
+        return;
+    } else if (nread == 0) {
+        write(1, "[NO FILES]", 10);
         return;
     }
 
@@ -100,7 +114,7 @@ void set_parent_cursor(void){
         }
 
         path_build(check, parent_dir, d->d_name);
-        if (my_strcmp(check, cwd) == 0) {
+        if (strcmp(check, cwd) == 0) {
             nav_parent_cursor.cursor_y = element_line;
             return;
         }
@@ -111,11 +125,16 @@ void set_parent_cursor(void){
 }
 
 void set_current_dir(void){
-    cwd_path_len = syscall2(SYS_GETCWD, (long)&cwd, sizeof(cwd));
-    syscall2(SYS_GETCWD, (long)&parent_dir, sizeof(parent_dir));
-    syscall2(SYS_GETCWD, (long)&child_obj, sizeof(child_obj));
+    char *ret = getcwd(cwd, sizeof(cwd));
+    if (ret == NULL) {
+        write(2, "Failed to get current directory\n", 31);
+        strcpy(cwd, "/");
+    }
+    cwd_path_len = strlen(cwd);
+    strcpy(parent_dir, cwd);
     go_to_parent_dir(parent_dir);
-    parent_path_len = my_strlen(parent_dir);
+    parent_path_len = strlen(parent_dir);
+    strcpy(child_obj, cwd);
     set_parent_cursor();
     set_dir_items();
 }
@@ -159,10 +178,6 @@ Screen nav_screen = {
     // update_func box_update[MAX_BOXES_PER_SCREEN];
 };
 
-struct timespec {
-    long tv_sec;   // seconds
-    long tv_nsec;  // nanoseconds
-};
 // Sleep for given milliseconds
 void msleep(unsigned long milliseconds)
 {
@@ -170,30 +185,30 @@ void msleep(unsigned long milliseconds)
     ts.tv_sec  = milliseconds / 1000;
     ts.tv_nsec = (milliseconds % 1000) * 1000000L;  // convert ms → ns
 
-    syscall2(SYS_nanosleep, (long)&ts, 0);
+    nanosleep(&ts, NULL);
 }
 
 void draw_x(int x_start, int x_stop, int y_start, int y_stop) {
     move_cursor(1,y_start);
     for (int i = x_start; i < x_stop; i++){
         move_cursor(i,y_start);
-        write_str("x", 1);
+        write(1, "x", 1);
         move_cursor(i,y_stop);
-        write_str("x", 1);
+        write(1, "x", 1);
         // msleep(25);
     }
     for (int j = y_start; j < y_stop; j++){
         move_cursor(x_start,j);
-        write_str("x", 1);
+        write(1, "x", 1);
         move_cursor(x_stop,j);
-        write_str("x", 1);
+        write(1, "x", 1);
     }
 }
 void fill_x(int x_start, int x_stop, int y_start, int y_stop) {
-    for (unsigned short row = y_start; row < y_stop; row++) {
+    for (unsigned short row = y_start; row <= y_stop; row++) {
         move_cursor(x_start, row);
-        for (unsigned short col = x_start; col < x_stop; col++) {
-            write_str("x", 1);
+        for (unsigned short col = x_start; col <= x_stop; col++) {
+            write(1, "x", 1);
         }
     }
 }
@@ -201,7 +216,7 @@ void fill_char(const char *c, unsigned short x_start, unsigned short x_stop, uns
     for (unsigned short row = y_start; row < y_stop; row++) {
         move_cursor(x_start, row);
         for (unsigned short col = x_start; col < x_stop; col++) {
-            write_str(c,1);
+            write(1, c,1);
         }
     }
 }
@@ -215,9 +230,14 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
 {
     char buf[MAX_DIRENT_BUF];
     int nread = list_dir_entries((long)path, buf, sizeof(buf));
-    if (nread <= 0) {
+    if (nread == -1) {
         move_cursor(x_start, y_start);
-        write_str("[NO FILES]", 10);
+        write(1, "[ERROR]", 7);
+        write(2, "Failed to read directory\n", 24);
+        return 0;
+    } else if (nread == 0) {
+        move_cursor(x_start, y_start);
+        write(1, "[NO FILES]", 10);
         return 0;
     }
 
@@ -241,11 +261,11 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
 
 
         unsigned short len_write = 0;
-        if (my_strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
-        else len_write = my_strlen(d->d_name);
-        write_str(d->d_name, len_write);
+        if (strlen(d->d_name) > x_stop - x_start) len_write = x_stop - x_start;
+        else len_write = strlen(d->d_name);
+        write(1, d->d_name, len_write);
 
-        if (d->d_type == DT_DIR) write_str("/", 1);
+        if (d->d_type == DT_DIR) write(1, "/", 1);
 
         pos += d->d_reclen;
         curr_row += 1;
@@ -260,7 +280,7 @@ void draw_parent_box() {
               nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
     move_cursor(nav_screen.box_offset_x[0], nav_parent_cursor.cursor_y);
-    write_str(">",1);
+    write(1, ">",1);
 }
 
 void draw_current_box() {
@@ -268,7 +288,7 @@ void draw_current_box() {
               nav_screen.box_offset_x[1] + 1, nav_screen.box_offset_x[1] + nav_screen.box_width[1],
               nav_screen.box_offset_y[1], nav_screen.box_offset_y[1] + nav_screen.box_height[1]);
     move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
-    write_str(">",1);
+    write(1, ">",1);
 }
 
 void draw_child_box() {
@@ -279,10 +299,10 @@ void draw_child_box() {
                 nav_screen.box_offset_y[2], nav_screen.box_offset_y[2] + nav_screen.box_height[2]);
     }
     else if (current_item_type == DT_REG) {
-        long fd = syscall2(SYS_OPEN, (long)child_obj, O_RDONLY);
+        int fd = open(child_obj, O_RDONLY);
         if (fd < 0) {
             move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
-            write_str("Cannot open", 11);
+            write(1, "Cannot open", 11);
             return;
         }
 
@@ -293,13 +313,13 @@ void draw_child_box() {
         move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
 
         while (line_count < nav_screen.box_height[2] ) {
-            long ret = syscall3(SYS_READ, fd, (long)line_buf, sizeof(line_buf));
+            ssize_t ret = read(fd, line_buf, sizeof(line_buf));
             if (ret <= 0) break;
             for (int i = 0; i < ret && line_count < nav_screen.box_height[2]; i++) {
                 char c = line_buf[i];
                 if (c == '\0') {
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2]);
-                    write_str("[Binary file]", 13);
+                    write(1, "[Binary file]", 13);
                     goto end_display;
                 }
                 if (pos > nav_screen.box_width[2]) {
@@ -314,17 +334,17 @@ void draw_child_box() {
                     line_count++;
                     move_cursor( nav_screen.box_offset_x[2], nav_screen.box_offset_y[2] + line_count );
                 } else if (c == '\t') {
-                    write_str("    ", 4);
+                    write(1, "    ", 4);
                     pos += 4;
                 } else {
-                    write_str(&c, 1);
+                    write(1, &c, 1);
                     pos++;
                 }
             }
         }
         end_display:
 
-        syscall1(SYS_CLOSE, fd);
+        close(fd);
     }
 
 }
@@ -335,13 +355,13 @@ void nav_draw() {
               nav_screen.box_offset_x[0] + 1, nav_screen.box_offset_x[0] + nav_screen.box_width[0],
               nav_screen.box_offset_y[0], nav_screen.box_offset_y[0] + nav_screen.box_height[0]);
     move_cursor(nav_screen.box_offset_x[0], nav_parent_cursor.cursor_y);
-    write_str(">",1);
+    write(1, ">",1);
     //draw current box
     nav_cursor.cursor_max_y = draw_dir_listing((long)cwd,
               nav_screen.box_offset_x[1] + 1, nav_screen.box_offset_x[1] + nav_screen.box_width[1],
               nav_screen.box_offset_y[1], nav_screen.box_offset_y[1] + nav_screen.box_height[1]);
     move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
-    write_str(">",1);
+    write(1, ">",1);
     //draw child box
     if (current_item_type == DT_DIR){
         draw_dir_listing((long)child_obj,
@@ -379,11 +399,11 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     }
 
     nav_parent_cursor.cursor_min_y = nav_screen.box_offset_y[1];
-    nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
+    nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1] - 1;
     if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
 
     nav_cursor.cursor_min_y = nav_screen.box_offset_y[1];
-    nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1];
+    nav_cursor.cursor_max_y = nav_screen.box_offset_y[1] + nav_screen.box_height[1] - 1;
     if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
 
     // nav_draw();
@@ -401,12 +421,12 @@ unsigned short nav_keybind(char key) {
     }
     else if (key == 'k') {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
-        write_str(" ",1);
+        write(1, " ",1);
 
         nav_cursor.cursor_y++;
         if (nav_cursor.cursor_y >= nav_cursor.cursor_max_y) nav_cursor.cursor_y = nav_cursor.cursor_min_y;
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y );
-        write_str(">",1);
+        write(1, ">",1);
 
         set_child_item_path();
         draw_child_box();
@@ -415,12 +435,12 @@ unsigned short nav_keybind(char key) {
     }
     else if (key == 'i') {
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
-        write_str(" ",1);
+        write(1, " ",1);
 
         nav_cursor.cursor_y--;
-        if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_max_y - 1;
+        if (nav_cursor.cursor_y < nav_cursor.cursor_min_y) nav_cursor.cursor_y = nav_cursor.cursor_max_y;
         move_cursor(nav_screen.box_offset_x[1], nav_cursor.cursor_y);
-        write_str(">",1);
+        write(1, ">",1);
 
         set_child_item_path();
         draw_child_box();
@@ -428,7 +448,7 @@ unsigned short nav_keybind(char key) {
         return ACTION_KEYBIND;
     }
     else if (key == 'j') {
-        my_strcpy(cwd, parent_dir);
+        strcpy(cwd, parent_dir);
         go_to_parent_dir(parent_dir);
         nav_cursor.cursor_y = nav_parent_cursor.cursor_y;
         set_parent_cursor();
@@ -436,8 +456,8 @@ unsigned short nav_keybind(char key) {
         nav_update(nav_screen.width, nav_screen.height);
     }
     else if (key == 'l' && current_item_type == DT_DIR) {
-        my_strcpy(parent_dir, cwd);
-        my_strcpy(cwd, child_obj);
+        strcpy(parent_dir, cwd);
+        strcpy(cwd, child_obj);
         nav_parent_cursor.cursor_y = nav_cursor.cursor_y;
         nav_cursor.cursor_y = 1;
         nav_cursor.cursor_y = 1;

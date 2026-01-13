@@ -1,9 +1,9 @@
+#include <unistd.h>
 #include "ansi.h"
-#include "syscall.h"
 
 // Helper to write raw ANSI sequences
 static void write_ansi(const char *seq, long len) {
-    write_str(seq, len);
+    write(1, seq, len);
 }
 
 // Clear entire screen and move cursor home
@@ -59,7 +59,7 @@ void clear_section(unsigned short x_start,unsigned short x_stop,unsigned short y
         move_cursor(x_start, row);
         for (unsigned short col = x_start; col <= x_stop; ++col) {
             // write_str("z", 1);
-            write_str(" ", 1);
+            write(1, " ", 1);
         }
     }
 }

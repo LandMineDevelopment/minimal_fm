@@ -1,5 +1,9 @@
+#include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <string.h>
+#include <stdlib.h>
 #include "defs.h"
-#include "syscall.h"
 #include "dir.h"
 #include "screen.h"
 #include "string.h"
@@ -29,7 +33,7 @@ const char *editor_paths[] = {
 // }
 
 
-void _start(void) {
+int main(int argc, char *argv[]) {
      // pull_screen_size();
     // 1. Initialize application state
     // 2. Detect available external editor
@@ -43,18 +47,25 @@ void _start(void) {
     // }
 
     struct winsize ws;
-    syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+    if (ioctl(0, TIOCGWINSZ, &ws) == -1) {
+        ws.ws_col = 80;
+        ws.ws_row = 24;
+        write(2, "Failed to get terminal size, using defaults\n", 44);
+    }
     // nav_screen.height = ws.ws_row;
     // nav_screen.width = ws.ws_col;
 
     // 4. Raw mode
     struct termios oldt;
     struct termios newt;
-    long ret = syscall3(SYS_IOCTL, 0, TCGETS, (long)&oldt);
-    if (ret == 0) {
+    if (tcgetattr(0, &oldt) == 0) {
         newt = oldt;
         newt.c_lflag &= ~(ICANON | ECHO);
-        syscall3(SYS_IOCTL, 0, TCSETS, (long)&newt);
+        if (tcsetattr(0, TCSANOW, &newt) != 0) {
+            write(2, "Failed to set raw mode\n", 22);
+        }
+    } else {
+        write(2, "Failed to get terminal attributes\n", 34);
     }
     // nav_screen.width = ws.ws_col;
     // nav_screen.height = ws.ws_row;
@@ -64,28 +75,31 @@ void _start(void) {
     clear_screen();
     set_current_dir();
     // move_cursor(5, 10);
-    write_str("hello, world", 12);
+    write(1, "hello, world", 12);
     move_cursor(ws.ws_col, ws.ws_row);
     int curr_x = 0;
     int curr_y = 0;
     char c;
     unsigned short act = ACTION_NOTHING;
     while (1) {
-        long bytes_read = syscall3(SYS_READ, 0, (long)&c, 1);
+        long bytes_read = read(0, &c, 1);
         if (bytes_read <= 0) break;
 
-        syscall3(SYS_IOCTL, 0, TIOCGWINSZ, (long)&ws);
+        if (ioctl(0, TIOCGWINSZ, &ws) == -1) {
+            ws.ws_col = 80;
+            ws.ws_row = 24;
+        }
         nav_update(ws.ws_col, ws.ws_row);
         act = nav_keybind(c);
 
         if (act == ACTION_EXIT) break;
 
         if (c == 'd' && act == ACTION_NOTHING) {
-            fill_x(0,ws.ws_col,0,ws.ws_row + 1);
+            fill_x(1,ws.ws_col,1,ws.ws_row);
         }
         if (c == 'c' && act == ACTION_NOTHING) {
             // clear_section(0,ws.ws_col,0,ws.ws_row + 1);
-            clear_section(0,ws.ws_col,0,ws.ws_row + 1);
+            clear_section(1,ws.ws_col,1,ws.ws_row);
         }
         if (c == 'i' && act == ACTION_NOTHING) {
             if (curr_y > 0) curr_y--;
@@ -106,10 +120,12 @@ void _start(void) {
    }
 
     // 6. Restore terminal
-    syscall3(SYS_IOCTL, 0, TCSETS, (long)&oldt);
+    if (tcsetattr(0, TCSANOW, &oldt) != 0) {
+        write(2, "Failed to restore terminal attributes\n", 38);
+    }
 
     // 7. Exit
     clear_screen();
     show_cursor();
-    syscall1(SYS_EXIT, 0);
+    return 0;
 }

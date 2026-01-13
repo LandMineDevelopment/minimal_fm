@@ -22,17 +22,7 @@
 #define TCSETS 0x5402
 #define TIOCGWINSZ 0x5413
 
-// Open flags
-#define O_RDONLY 0
-#define O_WRONLY 1
-#define O_CREAT 0100
-#define O_TRUNC 01000
-#define O_DIRECTORY 0200000
-
-// Dirent types
-#define DT_UNKNOWN 0
-#define DT_DIR 4
-#define DT_REG 8
+// Open flags and dirent types are now defined in standard headers
 typedef unsigned short (*update_func)(void *Screen, unsigned short, unsigned short);
 typedef unsigned short (*keybind_func)(char);
 
@@ -74,7 +64,7 @@ typedef enum {
     ACTION_KEYBIND,
 } Action;
 
-#define SYS_nanosleep 35
+
 // Preview modes
 typedef enum {
     PREVIEW_NONE,
@@ -103,22 +93,7 @@ typedef struct {
     char extension[MAX_EXT_LEN];
 } Entry;
 
-// Terminal structures
-struct termios {
-    unsigned int c_iflag;
-    unsigned int c_oflag;
-    unsigned int c_cflag;
-    unsigned int c_lflag;
-    unsigned char c_line;
-    unsigned char c_cc[19];
-};
-
-struct winsize {
-    unsigned short ws_row;
-    unsigned short ws_col;
-    unsigned short ws_xpixel;
-    unsigned short ws_ypixel;
-};
+// Terminal structures are now defined in standard headers
 
 typedef struct {
     unsigned short id;
