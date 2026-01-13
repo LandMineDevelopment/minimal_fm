@@ -16,7 +16,10 @@ char parent_dir[MAX_PATH];
 unsigned short parent_path_len;
 char child_obj[MAX_PATH];
 unsigned short child_path_len;
-char current_dir_items[MAX_DIRENT_BUF];
+union {
+    char buf[MAX_DIRENT_BUF];
+    unsigned long long align_dummy;
+} current_dir_items_u;
 int current_item_type = 0;
 int num_dir_items = 0;
 int size_of_dir_items;
@@ -30,7 +33,7 @@ void set_child_item_path(void){
     int pos = 0;
     int visible_index = 0;
     while (pos < size_of_dir_items) {
-        d = (struct linux_dirent64 *)(current_dir_items + pos);
+        d = (struct linux_dirent64 *)(current_dir_items_u.buf + pos);
 
         if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
         (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
@@ -57,7 +60,7 @@ void set_child_item_path(void){
 
 void set_dir_items(void){
     num_dir_items = 0;
-    int size = list_dir_entries((long)cwd, current_dir_items, sizeof(current_dir_items));
+    int size = list_dir_entries((long)cwd, current_dir_items_u.buf, sizeof(current_dir_items_u.buf));
     if (size == -1) {
         write(2, "Failed to list directory entries\n", 33);
         size_of_dir_items = 0;
@@ -66,7 +69,7 @@ void set_dir_items(void){
     size_of_dir_items = (unsigned short)size;
     int pos = 0;
     while (pos < size_of_dir_items) {
-        struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items + pos);
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(current_dir_items_u.buf + pos);
 
         if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
         (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
@@ -87,8 +90,11 @@ void set_dir_items(void){
 
 
 void set_parent_cursor(void){
-    char buf[MAX_DIRENT_BUF];
-    int nread = list_dir_entries((long)parent_dir, buf, sizeof(buf));
+    union {
+        char buf[MAX_DIRENT_BUF];
+        unsigned long long align;
+    } buf_u;
+    int nread = list_dir_entries((long)parent_dir, buf_u.buf, sizeof(buf_u.buf));
     if (nread == -1) {
         write(2, "Failed to read parent directory\n", 31);
         write(1, "[ERROR]", 7);
@@ -102,7 +108,7 @@ void set_parent_cursor(void){
     int element_line = 1;
     char check[MAX_PATH];
     while (pos < nread) {
-        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf_u.buf + pos);
         if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
            (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
             pos += d->d_reclen;
@@ -228,8 +234,11 @@ void draw(int x_start, int x_stop, int y_start, int y_stop, void (*func)(int, in
 unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned short x_stop,
                       unsigned short y_start, unsigned short y_stop)
 {
-    char buf[MAX_DIRENT_BUF];
-    int nread = list_dir_entries((long)path, buf, sizeof(buf));
+    union {
+        char buf[MAX_DIRENT_BUF];
+        unsigned long long align;
+    } buf_u;
+    int nread = list_dir_entries((long)path, buf_u.buf, sizeof(buf_u.buf));
     if (nread == -1) {
         move_cursor(x_start, y_start);
         write(1, "[ERROR]", 7);
@@ -248,7 +257,7 @@ unsigned short draw_dir_listing(long path, unsigned short x_start, unsigned shor
     while (pos < nread && curr_row <= y_stop) {
         move_cursor(x_start, curr_row);
 
-        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf + pos);
+        struct linux_dirent64 *d = (struct linux_dirent64 *)(buf_u.buf + pos);
         if (d->d_name[0] == '.' && (d->d_name[1] == '\0' ||
            (d->d_name[1] == '.' && d->d_name[2] == '\0'))) {
             pos += d->d_reclen;
@@ -306,7 +315,7 @@ void draw_child_box() {
             return;
         }
 
-        char line_buf[nav_screen.box_width[2] * nav_screen.box_height[2]];
+        char line_buf[4096]; // Capped VLA to prevent large allocations
         int line_count = 0;
         unsigned short pos = 0;
 
@@ -380,6 +389,7 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     for (int i = 0; i < nav_screen.grid_cols; i++){
         total_col_parts += nav_screen.grid_cols_dims[i];
     }
+    if (total_col_parts == 0) total_col_parts = 1; // Safety check for division by zero
     for (int i = 0; i < nav_screen.num_boxes; i++){
         int col_dim_ind = i % nav_screen.grid_cols;
         nav_screen.box_width[i] = nav_screen.grid_cols_dims[col_dim_ind] * width / total_col_parts;
@@ -391,6 +401,7 @@ unsigned short nav_update(unsigned short width, unsigned short height){
     for (int i = 0; i < nav_screen.grid_rows; i++){
         total_row_parts += nav_screen.grid_row_dims[i];
     }
+    if (total_row_parts == 0) total_row_parts = 1; // Safety check for division by zero
     for (int i = 0; i < nav_screen.num_boxes; i++){
         int row_dim_ind = i % nav_screen.grid_rows;
         nav_screen.box_height[i] = nav_screen.grid_row_dims[row_dim_ind] * height / total_row_parts;
