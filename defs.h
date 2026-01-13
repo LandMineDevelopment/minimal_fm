@@ -1,21 +1,23 @@
-// Syscall numbers for x86_64 Linux
-#define SYS_READ 0
-#define SYS_WRITE 1
-#define SYS_EXIT 60
-#define SYS_IOCTL 16
-#define SYS_OPEN 2
-#define SYS_CLOSE 3
-#define SYS_GETDENTS64 217
-#define SYS_CHDIR 80
-#define SYS_GETCWD 79
-#define SYS_FORK 57
-#define SYS_EXECVE 59
-#define SYS_WAIT4 61
-#define SYS_MKDIR 83
-#define SYS_CREAT 85
-#define SYS_UNLINK 87
-#define SYS_RMDIR 84
-#define SYS_RENAME 82
+#include <sys/syscall.h>
+
+// Portable syscall numbers using system headers
+#define SYS_READ __NR_read
+#define SYS_WRITE __NR_write
+#define SYS_EXIT __NR_exit
+#define SYS_IOCTL __NR_ioctl
+#define SYS_OPEN __NR_open
+#define SYS_CLOSE __NR_close
+#define SYS_GETDENTS64 __NR_getdents64
+#define SYS_CHDIR __NR_chdir
+#define SYS_GETCWD __NR_getcwd
+#define SYS_FORK __NR_fork
+#define SYS_EXECVE __NR_execve
+#define SYS_WAIT4 __NR_wait4
+#define SYS_MKDIR __NR_mkdir
+#define SYS_CREAT __NR_creat
+#define SYS_UNLINK __NR_unlink
+#define SYS_RMDIR __NR_rmdir
+#define SYS_RENAME __NR_rename
 
 // IOCTL requests
 #define TCGETS 0x5401
